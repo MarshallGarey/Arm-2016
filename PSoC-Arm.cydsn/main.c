@@ -105,6 +105,9 @@ int main() {
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
+        
+        // Note - We're receiving commands for 4 joints but only receiving
+        // feedback for two.
         eventLoop();
         /*
         TOGGLE_LED0;

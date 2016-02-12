@@ -36,8 +36,9 @@ void pololuControl_driveMotor(uint16_t target, uint8_t joint) {
     else if (target < POLOLUCONTROL_MIN_TARGET)
         target = POLOLUCONTROL_MIN_TARGET;
     
-    //Computation for converting the target to a binary format the pololu understands
-    uint8_t serialBytes[2];
+    //Computation for converting the target to a binary format
+    // that the pololu understands
+    static uint8_t serialBytes[2]; // No need to reallocate this every time
     serialBytes[0] = 0xC0 + (target & 0x1F);
     serialBytes[1] = (target >> 5) & 0x7F;
     
@@ -65,10 +66,7 @@ void pololuControl_driveMotor(uint16_t target, uint8_t joint) {
 
 void pololuControl_readVariable(uint8_t command, uint8_t joint) {
     // first, make sure it is a valid command:
-    if (command == POLOLUCONTROL_READ_TARGET_COMMAND ||
-        command == POLOLUCONTROL_READ_FEEDBACK_COMMAND ||
-        command == POLOLUCONTROL_READ_PID_PERIOD_COUNT_COMMAND) {
-        
+    if (command == POLOLUCONTROL_READ_FEEDBACK_COMMAND) {
         switch(joint) {
         case POLOLUCONTROL_TURRET:
             UART_Turret_WriteTxData(command);

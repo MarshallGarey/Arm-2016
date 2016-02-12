@@ -15,8 +15,7 @@
 volatile uint32_t events = 0;
 
 // Arm payload struct
-// Dest is the last position we wrote to the motor
-// Pos is the most recent positional feedback from the motor
+// These are the last positions we wrote to the motors
 static struct ArmPayload {
     uint16_t turretDest;
     uint16_t shoulderDest;
@@ -24,8 +23,12 @@ static struct ArmPayload {
     uint16_t forearmDest;
     uint16_t wristTiltDest;
     uint16_t wristSpinDest;
+    uint16_t handDest; // really just open/close
 } ArmPayload;
 
+// Arm position struct
+// These are the most recent positions received as feedback from the motors
+// We really don't need feedback from the hand since it's just open/close.
 volatile struct ArmPosition {
     uint16_t turretPos;
     uint16_t shoulderPos;
@@ -36,16 +39,19 @@ volatile struct ArmPosition {
 } ArmPosition;
 
 #define POSITION_PAYLOAD_SIZE (12) // 2 bytes per joint, 6 joints
-// turretlo, turrethi, shoulderlo, shoulderhi, elbowlo, elbowhi,
-// forearmlo, forearmhi, wristspinlo, wristspinhi, wristtiltlo, wristtilthi
+// The positions are stored in little endian format - low byte first, then
+// high byte, in order from joints closest to the rover outward
+// [turretlo, turrethi, shoulderlo, shoulderhi, elbowlo, elbowhi,
+// forearmlo, forearmhi, wristspinlo, wristspinhi, wristtiltlo, wristtilthi]
 static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 
-// uart0 - comm with computer state machine:
+// State machine states to receive commands from computer
+// The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
 #define PREAMBLE1 0xE3
 static enum compRxStates_e { pre0, pre1, turretlo, turrethi, shoulderlo, 
     shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
-    wristtiltlo, wristtilthi, wristspinlo, wristspinhi } compRxState;
+    wristtiltlo, wristtilthi, wristspinlo, wristspinhi, hand } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -53,8 +59,13 @@ int compRxEventHandler() {
     static uint16_t data;
     static uint8_t byte;
     
-    // Keep reading rx buffer until empty
-    while (UART_Computer_GetRxBufferSize()) {
+    // Keep reading the rx buffer until empty.
+    // GetRxBufferSize gets the number of bytes in the software buffer,
+    // but not the hardware FIFO (which is 4 bytes in size), so we also want
+    // to call ReadRxStatus and check if the RX_STS_FIFO_NOTEMPTY bit was set.
+    while (UART_Computer_GetRxBufferSize() || 
+          (UART_Computer_ReadRxStatus() & UART_Computer_RX_STS_FIFO_NOTEMPTY))
+    {
         // MSB contains status, LSB contains data; if status is nonzero, an 
         // error has occurred
         data = (uint16_t) UART_Computer_GetByte();
@@ -104,63 +115,94 @@ int compRxEventHandler() {
             ArmPayload.shoulderDest |= byte << 8;
             pololuControl_driveMotor(ArmPayload.shoulderDest, 
                 POLOLUCONTROL_SHOULDER);
-            compRxState = pre0; // change state
+            compRxState = elbowlo; // change state
             break;
         case elbowlo:
-            
+            ArmPayload.elbowDest = byte;
+            compRxState = elbowhi; // change state
             break;
         case elbowhi:
-            
+            ArmPayload.elbowDest |= byte << 8;
+            pololuControl_driveMotor(ArmPayload.elbowDest,
+                POLOLUCONTROL_ELBOW);
+            compRxState = forearmlo; // change state
             break;
         case forearmlo:
-            
+            ArmPayload.forearmDest = byte;
+            compRxState = forearmhi;
             break;
         case forearmhi:
-            
+            ArmPayload.forearmDest |= byte << 8;
+            pololuControl_driveMotor(ArmPayload.forearmDest,
+                POLOLUCONTROL_FOREARM);
+            compRxState = wristtiltlo; // change state
             break;
+            // TODO: call dynamixel commands
         case wristtiltlo:
-            
+            ArmPayload.wristTiltDest = byte;
+            compRxState = wristtilthi; // change state
             break;
         case wristtilthi:
-            // TODO: ask dynamixel for feedback after sending position
+            ArmPayload.wristTiltDest |= byte << 8;
+            // TODO: call dynamixel command
+            compRxState = wristspinlo; // change state
             break;
         case wristspinlo:
-            
+            ArmPayload.wristSpinDest = byte;
+            compRxState = wristspinhi; // change state
             break;
         case wristspinhi:
-            // TODO: ask dynamixel for feedback after sending position
+            ArmPayload.wristSpinDest |= byte << 8;
+            // TODO: call dynamixel command
+            compRxState = pre0;
             break;
+            /*
+        case hand:
+            
+            break;
+            */
         default:
             // shouldn't get here!!!
             break;
         }
     }
+    
+    // Check if any data came in that we didn't get. If so, then queue up
+    // this event again in the events variable.
+    if (UART_Computer_GetRxBufferSize() || 
+        UART_Computer_ReadRxStatus() & UART_Computer_RX_STS_FIFO_NOTEMPTY) 
+    {
+        events |= COMP_RX_EVENT;
+    }
     return SUCCESS; // success
 }
 
-// Get feedback from motors and send the data to the computer
-// TODO: Get rid of this event and ask the pololu for feedback immediately
-// after I send it a position in the computer Rx event handler.
+// Ask the motor controller boards for feedback.
 void heartbeatEventHandler() {
-    // Report positional feedback to computer
-    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-	//	POLOLUCONTROL_TURRET);
+    // Turret
+    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+		POLOLUCONTROL_TURRET);
     
+    // Shoulder
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_SHOULDER);
-    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-		POLOLUCONTROL_ELBOW);
     
+    // Elbow
+    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+	//	POLOLUCONTROL_ELBOW);
+    
+    // Forearm
     //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 	//	POLOLUCONTROL_FOREARM);
 	
-    // TODO: call dynamixelReadPosition() for wrist rotate and tilt
-	
-    //UART_Computer_WriteTxData('H');
-    //UART_Computer_WriteTxData('I');
-    //UART_Computer_WriteTxData('\n');
+    // Wrist tilt
+    // TODO: call dynamixelReadPosition() for wrist tilt
+    
+    // Wrist spin
+    // TODO: call dynamixelReadPosition() for wrist spin
 }
 
+// Report received positional feedback to the computer.
 void reportPositionEvent() {
     // Send positions to computer
     positionArray[0] = (ArmPosition.turretPos & 0xff);
@@ -176,7 +218,6 @@ void reportPositionEvent() {
 	positionArray[10] = ((ArmPosition.wristSpinPos & 0xff));
 	positionArray[11] = ((ArmPosition.wristSpinPos >> 8) & 0xff);
 	UART_Computer_PutArray(positionArray, POSITION_PAYLOAD_SIZE);
-    
 }
 
 /* [] END OF FILE */
