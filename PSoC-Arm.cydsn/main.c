@@ -132,17 +132,14 @@ void eventLoop() {
                 events &= ~COMP_RX_EVENT;
                 compRxEventHandler();
             }
+            
             // Heartbeat event
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
                 compRxEvent = LOCKED;
                 heartbeatEventHandler();
+                events |= POS_EVENT_GROUP;
             }
-            
-            //else if (events & SHOULDER_POS_EVENT) {
-            //    events &= ~SHOULDER_POS_EVENT;
-            //    reportPositionEvent();
-            //}
             
             // Position event group - wait for all bits to be set
             else if ((events & POS_EVENT_GROUP) == POS_EVENT_GROUP) {

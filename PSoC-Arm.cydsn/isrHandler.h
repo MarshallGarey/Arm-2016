@@ -25,17 +25,18 @@ extern volatile uint32_t events;
 #define COMP_RX_EVENT 0x0001
 #define HEARTBEAT_EVENT 0x0002
 
-// positional feedback event group
-//#define POS_EVENT_GROUP 0xfc00
-// events in the group
+// positional feedback events
 #define TURRET_POS_EVENT 0x0400
 #define SHOULDER_POS_EVENT 0x0800
 #define ELBOW_POS_EVENT 0x1000
 #define FOREARM_POS_EVENT 0x2000
-#define WRIST_SPIN_POS_EVENT 0x4000
-#define WRIST_TILT_POS_EVENT 0x8000
+#define WRIST_TILT_POS_EVENT 0x4000
+#define WRIST_SPIN_POS_EVENT 0x8000
 
-#define POS_EVENT_GROUP 0x1800
+// positional feedback event group - just an or of all the position events
+#define POS_EVENT_GROUP (TURRET_POS_EVENT | SHOULDER_POS_EVENT | \
+                        ELBOW_POS_EVENT | FOREARM_POS_EVENT) /* | \
+                        WRIST_TILT_POS_EVENT | WRIST_SPIN_POS_EVENT)*/
 
 // general macros
 #define SUCCESS 0

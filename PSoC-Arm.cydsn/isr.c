@@ -12,14 +12,12 @@
 #include "isr.h"
 #include "isrHandler.h"
 
-extern volatile struct ArmPosition {
-    uint16_t turretPos;
-    uint16_t shoulderPos;
-    uint16_t elbowPos;
-    uint16_t forearmPos;
-    uint16_t wristSpinPos;
-    uint16_t wristTiltPos;
-} ArmPosition;
+volatile uint16_t turretPos;
+volatile uint16_t shoulderPos;
+volatile uint16_t elbowPos;
+volatile uint16_t forearmPos;
+volatile uint16_t wristTiltPos;
+volatile uint16_t wristSpinPos;
 
 //CY_ISR_PROTO(CompRxISR);
 CY_ISR(CompRxISR) {
@@ -44,20 +42,19 @@ CY_ISR(TurretRxISR) {
     
     switch(state) {
         case low:
-            ArmPosition.shoulderPos = UART_Shoulder_GetByte();
+            turretPos = UART_Turret_GetByte() & 0xff;
             state = high;
         break;
         case high:
-            ArmPosition.shoulderPos |= UART_Shoulder_GetByte() << 8;
+            turretPos |= (UART_Turret_GetByte() << 8) & 0xff00;
             state = low;
-            events |= SHOULDER_POS_EVENT;
+            events |= TURRET_POS_EVENT;
         break;
         default:
             state = low;
         break;
     }
 }
-
 
 //CY_ISR_PROTO(ShoulderRxISR);
 CY_ISR(ShoulderRxISR) {
@@ -68,11 +65,11 @@ CY_ISR(ShoulderRxISR) {
     
     switch(state) {
         case low:
-            ArmPosition.shoulderPos = UART_Shoulder_GetByte();
+            shoulderPos = UART_Shoulder_GetByte() & 0xff;
             state = high;
         break;
         case high:
-            ArmPosition.shoulderPos |= UART_Shoulder_GetByte() << 8;
+            shoulderPos |= (UART_Shoulder_GetByte() << 8) & 0xff00;
             state = low;
             events |= SHOULDER_POS_EVENT;
         break;
@@ -91,11 +88,11 @@ CY_ISR(ElbowRxISR) {
     
     switch(state) {
         case low:
-            ArmPosition.elbowPos = UART_Elbow_GetByte();
+            elbowPos = UART_Elbow_GetByte() & 0xff;
             state = high;
         break;
         case high:
-            ArmPosition.elbowPos |= UART_Elbow_GetByte() << 8;
+            elbowPos |= (UART_Elbow_GetByte() << 8) & 0xff00;
             state = low;
             events |= ELBOW_POS_EVENT;
         break;
@@ -114,11 +111,11 @@ CY_ISR(ForearmRxISR) {
     
     switch(state) {
         case low:
-            ArmPosition.forearmPos = UART_Forearm_GetByte();
+            forearmPos = UART_Forearm_GetByte() & 0xff;
             state = high;
         break;
         case high:
-            ArmPosition.forearmPos |= UART_Forearm_GetByte() << 8;
+            forearmPos |= (UART_Forearm_GetByte() << 8) & 0xff00;
             state = low;
             events |= FOREARM_POS_EVENT;
         break;

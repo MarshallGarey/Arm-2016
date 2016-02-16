@@ -26,17 +26,15 @@ static struct ArmPayload {
     uint16_t handDest; // really just open/close
 } ArmPayload;
 
-// Arm position struct
+// Arm positions
 // These are the most recent positions received as feedback from the motors
 // We really don't need feedback from the hand since it's just open/close.
-volatile struct ArmPosition {
-    uint16_t turretPos;
-    uint16_t shoulderPos;
-    uint16_t elbowPos;
-    uint16_t forearmPos;
-    uint16_t wristTiltPos;
-    uint16_t wristSpinPos;
-} ArmPosition;
+extern volatile uint16_t turretPos;
+extern volatile uint16_t shoulderPos;
+extern volatile uint16_t elbowPos;
+extern volatile uint16_t forearmPos;
+extern volatile uint16_t wristTiltPos;
+extern volatile uint16_t wristSpinPos;
 
 #define POSITION_PAYLOAD_SIZE (12) // 2 bytes per joint, 6 joints
 // The positions are stored in little endian format - low byte first, then
@@ -68,17 +66,17 @@ int compRxEventHandler() {
     {
         // MSB contains status, LSB contains data; if status is nonzero, an 
         // error has occurred
-        data = (uint16_t) UART_Computer_GetByte();
+        data = UART_Computer_GetByte();
         
         // check status
         // TODO: modify to actually return the status byte
         // use this in the main function
         if (data & 0xff00) {
-            LED0_Write(!LED0_Read());
+            //LED0_Write(!LED0_Read());
             return UART_READ_ERROR;
         }
         
-        // mask the data to a single byte
+        // mask the data to a single byte*
         byte = data & 0xff;
         
         // state machine
@@ -180,12 +178,12 @@ int compRxEventHandler() {
 // Ask the motor controller boards for feedback.
 void heartbeatEventHandler() {
     // Turret
-    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-		POLOLUCONTROL_TURRET);
+    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+	//	POLOLUCONTROL_TURRET);
     
     // Shoulder
-    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-		POLOLUCONTROL_SHOULDER);
+    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+	//	POLOLUCONTROL_SHOULDER);
     
     // Elbow
     //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
@@ -204,19 +202,25 @@ void heartbeatEventHandler() {
 
 // Report received positional feedback to the computer.
 void reportPositionEvent() {
+    static int i = 0;
+    i++;
+    turretPos += i;
+    shoulderPos += 2*i;
+    elbowPos += 3*i;
+    forearmPos += 4*i;
     // Send positions to computer
-    positionArray[0] = (ArmPosition.turretPos & 0xff);
-    positionArray[1] = ((ArmPosition.turretPos >> 8) & 0xff);
-    positionArray[2] = (ArmPosition.shoulderPos & 0xff);
-    positionArray[3] = ((ArmPosition.shoulderPos >> 8) & 0xff);
-    positionArray[4] = (ArmPosition.elbowPos & 0xff);
-    positionArray[5] = ((ArmPosition.elbowPos  >> 8) & 0xff);
-    positionArray[6] = (ArmPosition.forearmPos & 0xff);
-    positionArray[7] = ((ArmPosition.forearmPos >> 8) & 0xff);
-	positionArray[8] = ((ArmPosition.wristTiltPos & 0xff));
-	positionArray[9] = ((ArmPosition.wristTiltPos >> 8) & 0xff);
-	positionArray[10] = ((ArmPosition.wristSpinPos & 0xff));
-	positionArray[11] = ((ArmPosition.wristSpinPos >> 8) & 0xff);
+    positionArray[0] =  (turretPos & 0xff);
+    positionArray[1] = ((turretPos >> 8) & 0xff);
+    positionArray[2] =  (shoulderPos & 0xff);
+    positionArray[3] = ((shoulderPos >> 8) & 0xff);
+    positionArray[4] =  (elbowPos & 0xff);
+    positionArray[5] = ((elbowPos  >> 8) & 0xff);
+    positionArray[6] =  (forearmPos & 0xff);
+    positionArray[7] = ((forearmPos >> 8) & 0xff);
+	positionArray[8] = ((wristTiltPos & 0xff));
+	positionArray[9] = ((wristTiltPos >> 8) & 0xff);
+	positionArray[10] =((wristSpinPos & 0xff));
+	positionArray[11] =((wristSpinPos >> 8) & 0xff);
 	UART_Computer_PutArray(positionArray, POSITION_PAYLOAD_SIZE);
 }
 
