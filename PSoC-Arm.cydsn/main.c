@@ -49,6 +49,10 @@
 
 #define TOGGLE_LED0 LED0_Write(!LED0_Read())
 
+#define SERVO_NEUTRAL 1500
+#define SERVO_MAX 2000
+#define SERVO_MIN 1000
+
 // the main event loop
 void eventLoop();
 
@@ -99,27 +103,22 @@ int main() {
     ForearmRxIsr_StartEx(ForearmRxISR);
     pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
     
+    // wrist uart
+    
+    // hand pwm
+    Clock_2_Start();
+    PWM_Hand_Start();
+    PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+    
     // 5 second delay before we start everything up
     CyDelay(5000);
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
+        //handTest();
         
-        // Note - We're receiving commands for 4 joints but only receiving
-        // feedback for two.
         eventLoop();
-        /*
-        TOGGLE_LED0;
-        pololuControl_driveMotor(200, POLOLUCONTROL_TURRET);
-        CyDelay(3000);
-        TOGGLE_LED0;
-        pololuControl_driveMotor(4000, POLOLUCONTROL_TURRET);
-        CyDelay(3000);
-        TOGGLE_LED0;
-        pololuControl_driveMotor(2048, POLOLUCONTROL_TURRET);
-        CyDelay(3000);
-        */
     }
 }
 
@@ -137,8 +136,8 @@ void eventLoop() {
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
                 compRxEvent = LOCKED;
-                heartbeatEventHandler();
-                events |= POS_EVENT_GROUP;
+                heartbeatEventHandler(); // TODO: this doesn't do anything right now.
+                events |= POS_EVENT_GROUP; // TODO: remove this.
             }
             
             // Position event group - wait for all bits to be set
@@ -212,6 +211,13 @@ void multiJointTest() {
             CyDelay(5000);           
         }
     } 
+}
+
+void handTest() {
+    
+    while(1) {
+        
+    }
 }
 
 /* [] END OF FILE */

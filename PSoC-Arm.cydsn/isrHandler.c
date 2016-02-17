@@ -156,7 +156,7 @@ int compRxEventHandler() {
             break;
             /*
         case hand:
-            
+            TODO: get the byte - open or close - and translate to PWM compare.
             break;
             */
         default:
