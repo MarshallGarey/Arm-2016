@@ -21,6 +21,10 @@ void reportPositionEvent();
 // event variables
 extern volatile uint32_t events;
 
+#define SERVO_NEUTRAL 1500
+#define SERVO_MAX 2000
+#define SERVO_MIN 1000
+
 // events
 #define COMP_RX_EVENT 0x0001
 #define HEARTBEAT_EVENT 0x0002

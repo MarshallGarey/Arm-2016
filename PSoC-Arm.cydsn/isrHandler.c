@@ -36,7 +36,7 @@ extern volatile uint16_t forearmPos;
 extern volatile uint16_t wristTiltPos;
 extern volatile uint16_t wristSpinPos;
 
-#define POSITION_PAYLOAD_SIZE (12) // 2 bytes per joint, 6 joints
+#define POSITION_PAYLOAD_SIZE (13) // 1 start byte, 2 bytes per joint, 6 joints
 // The positions are stored in little endian format - low byte first, then
 // high byte, in order from joints closest to the rover outward
 // [turretlo, turrethi, shoulderlo, shoulderhi, elbowlo, elbowhi,
@@ -156,7 +156,12 @@ int compRxEventHandler() {
             break;
             /*
         case hand:
-            TODO: get the byte - open or close - and translate to PWM compare.
+            // TODO: get the byte - open or close - and translate to PWM compare.
+            if (byte == 0) ArmPayload.handDest = SERVO_MIN;
+            else if (byte == 1) ArmPayload.handDest = SERVO_MAX;
+            else ArmPayload.handDest = SERVO_NEUTRAL;
+            PWM_Hand_WriteCompare(ArmPayload.handDest);
+            compRxState = pre0;
             break;
             */
         default:
@@ -209,18 +214,19 @@ void reportPositionEvent() {
     elbowPos += 3*i;
     forearmPos += 4*i;
     // Send positions to computer
-    positionArray[0] =  (turretPos & 0xff);
-    positionArray[1] = ((turretPos >> 8) & 0xff);
-    positionArray[2] =  (shoulderPos & 0xff);
-    positionArray[3] = ((shoulderPos >> 8) & 0xff);
-    positionArray[4] =  (elbowPos & 0xff);
-    positionArray[5] = ((elbowPos  >> 8) & 0xff);
-    positionArray[6] =  (forearmPos & 0xff);
-    positionArray[7] = ((forearmPos >> 8) & 0xff);
-	positionArray[8] = ((wristTiltPos & 0xff));
-	positionArray[9] = ((wristTiltPos >> 8) & 0xff);
-	positionArray[10] =((wristSpinPos & 0xff));
-	positionArray[11] =((wristSpinPos >> 8) & 0xff);
+    positionArray[0] = 0xE3; // start byte;
+    positionArray[1] =  (turretPos & 0xff);
+    positionArray[2] = ((turretPos >> 8) & 0xff);
+    positionArray[3] =  (shoulderPos & 0xff);
+    positionArray[4] = ((shoulderPos >> 8) & 0xff);
+    positionArray[5] =  (elbowPos & 0xff);
+    positionArray[6] = ((elbowPos  >> 8) & 0xff);
+    positionArray[7] =  (forearmPos & 0xff);
+    positionArray[8] = ((forearmPos >> 8) & 0xff);
+	positionArray[9] = ((wristTiltPos & 0xff));
+	positionArray[10] = ((wristTiltPos >> 8) & 0xff);
+	positionArray[11] =((wristSpinPos & 0xff));
+	positionArray[12] =((wristSpinPos >> 8) & 0xff);
 	UART_Computer_PutArray(positionArray, POSITION_PAYLOAD_SIZE);
 }
 

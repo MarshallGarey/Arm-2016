@@ -49,10 +49,6 @@
 
 #define TOGGLE_LED0 LED0_Write(!LED0_Read())
 
-#define SERVO_NEUTRAL 1500
-#define SERVO_MAX 2000
-#define SERVO_MIN 1000
-
 // the main event loop
 void eventLoop();
 
@@ -63,6 +59,9 @@ void multiJointTest();
 enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
 
 int main() {
+    
+    // 5 second delay before we start everything up
+    CyDelay(5000);
     
     // Initialize variables
     events = 0; // no pending events initially
@@ -109,9 +108,6 @@ int main() {
     Clock_2_Start();
     PWM_Hand_Start();
     PWM_Hand_WriteCompare(SERVO_NEUTRAL);
-    
-    // 5 second delay before we start everything up
-    CyDelay(5000);
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
@@ -216,7 +212,18 @@ void multiJointTest() {
 void handTest() {
     
     while(1) {
-        
+        PWM_Hand_WriteCompare(SERVO_MAX);
+        TOGGLE_LED0;
+        CyDelay(500);
+        PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+        TOGGLE_LED0;
+        CyDelay(2000);
+        PWM_Hand_WriteCompare(SERVO_MIN);
+        TOGGLE_LED0;
+        CyDelay(500);
+        PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+        TOGGLE_LED0;
+        CyDelay(2000);
     }
 }
 
