@@ -55,6 +55,9 @@ void eventLoop();
 // an automated test to control multiple pololu joints with just the PSoC
 void multiJointTest();
 
+// an automated test to open and close the hand.
+void handTest();
+
 // CompRxEvent will not happen if this is locked.
 enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
 
@@ -103,6 +106,7 @@ int main() {
     pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
     
     // wrist uart
+    // TODO: initialize this here
     
     // hand pwm
     Clock_2_Start();
@@ -113,7 +117,6 @@ int main() {
     while(1) {
         //multiJointTest();
         //handTest();
-        
         eventLoop();
     }
 }
@@ -125,15 +128,16 @@ void eventLoop() {
             // Receive message from computer
             if ((events & COMP_RX_EVENT) && (compRxEvent == UNLOCKED)) {
                 events &= ~COMP_RX_EVENT;
+                TOGGLE_LED0;
                 compRxEventHandler();
             }
             
             // Heartbeat event
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
-                compRxEvent = LOCKED;
-                heartbeatEventHandler(); // TODO: this doesn't do anything right now.
-                events |= POS_EVENT_GROUP; // TODO: remove this.
+                //compRxEvent = LOCKED;
+                //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
+                //events |= POS_EVENT_GROUP; // TODO: remove this.
             }
             
             // Position event group - wait for all bits to be set
@@ -169,8 +173,8 @@ void multiJointTest() {
         turret = shoulder = elbow = forearm = target;
         pololuControl_driveMotor(turret, POLOLUCONTROL_TURRET);
         pololuControl_driveMotor(shoulder, POLOLUCONTROL_SHOULDER);
-        //pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
-        //pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
+        pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
+        pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
         CyDelay(5000);
         
         // slowly move forward
@@ -180,8 +184,8 @@ void multiJointTest() {
             turret = shoulder = elbow = forearm = target;
             pololuControl_driveMotor(turret, POLOLUCONTROL_TURRET);
             pololuControl_driveMotor(shoulder, POLOLUCONTROL_SHOULDER);
-            //pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
-            //pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
+            pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
+            pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
             CyDelay(5000);
         }
         
@@ -191,8 +195,8 @@ void multiJointTest() {
         turret = shoulder = elbow = forearm = target;
         pololuControl_driveMotor(turret, POLOLUCONTROL_TURRET);
         pololuControl_driveMotor(shoulder, POLOLUCONTROL_SHOULDER);
-        //pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
-        //pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
+        pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
+        pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
         CyDelay(5000);    
         
         // slowly move backward
@@ -202,8 +206,8 @@ void multiJointTest() {
             turret = shoulder = elbow = forearm = target;
             pololuControl_driveMotor(turret, POLOLUCONTROL_TURRET);
             pololuControl_driveMotor(shoulder, POLOLUCONTROL_SHOULDER);
-            //pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
-            //pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
+            pololuControl_driveMotor(elbow, POLOLUCONTROL_ELBOW);
+            pololuControl_driveMotor(forearm, POLOLUCONTROL_FOREARM);
             CyDelay(5000);           
         }
     } 
@@ -214,13 +218,13 @@ void handTest() {
     while(1) {
         PWM_Hand_WriteCompare(SERVO_MAX);
         TOGGLE_LED0;
-        CyDelay(500);
+        CyDelay(1000);
         PWM_Hand_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(2000);
         PWM_Hand_WriteCompare(SERVO_MIN);
         TOGGLE_LED0;
-        CyDelay(500);
+        CyDelay(1000);
         PWM_Hand_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(2000);
