@@ -49,7 +49,8 @@ static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 #define PREAMBLE1 0xE3
 static enum compRxStates_e { pre0, pre1, turretlo, turrethi, shoulderlo, 
     shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
-    wristtiltlo, wristtilthi, wristspinlo, wristspinhi, hand } compRxState;
+    wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
+    handlo, handhi } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -154,16 +155,17 @@ int compRxEventHandler() {
             // TODO: call dynamixel command
             compRxState = pre0;
             break;
-            /*
-        case hand:
-            // TODO: get the byte - open or close - and translate to PWM compare.
-            if (byte == 0) ArmPayload.handDest = SERVO_MIN;
-            else if (byte == 1) ArmPayload.handDest = SERVO_MAX;
-            else ArmPayload.handDest = SERVO_NEUTRAL;
-            PWM_Hand_WriteCompare(ArmPayload.handDest);
+        /*
+        case handlo:
+            ArmPayload.handDest = byte;
+            compRxState = handhi;
+            break;
+        case handhi:
+            ArmPayload.handDest |= byte << 8;
+            driveHand(ArmPayload.handDest);
             compRxState = pre0;
             break;
-            */
+        */
         default:
             // shouldn't get here!!!
             break;
@@ -178,6 +180,17 @@ int compRxEventHandler() {
         events |= COMP_RX_EVENT;
     }
     return SUCCESS; // success
+}
+
+// Drives hand to correct position: open, close, or middle
+void driveHand(uint16_t pos) {
+    if (pos < SERVO_MIN) {
+        pos = SERVO_MIN;
+    }
+    else if (pos > SERVO_MAX) {
+        pos = SERVO_MAX;
+    }
+    PWM_Hand_WriteCompare(pos);
 }
 
 // Ask the motor controller boards for feedback.

@@ -42,6 +42,9 @@ extern volatile uint32_t events;
                         ELBOW_POS_EVENT | FOREARM_POS_EVENT) /* | \
                         WRIST_TILT_POS_EVENT | WRIST_SPIN_POS_EVENT)*/
 
+// Hand
+void driveHand(uint16_t pos);
+
 // general macros
 #define SUCCESS 0
 #define UART_READ_ERROR 1

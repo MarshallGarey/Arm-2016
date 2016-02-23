@@ -116,8 +116,8 @@ int main() {
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
-        //handTest();
-        eventLoop();
+        handTest();
+        //eventLoop();
     }
 }
 
@@ -218,16 +218,16 @@ void handTest() {
     while(1) {
         PWM_Hand_WriteCompare(SERVO_MAX);
         TOGGLE_LED0;
-        CyDelay(1000);
+        CyDelay(4000);
         PWM_Hand_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
-        CyDelay(2000);
+        CyDelay(4000);
         PWM_Hand_WriteCompare(SERVO_MIN);
         TOGGLE_LED0;
-        CyDelay(1000);
+        CyDelay(4000);
         PWM_Hand_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
-        CyDelay(2000);
+        CyDelay(4000);
     }
 }
 
