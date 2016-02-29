@@ -116,8 +116,8 @@ int main() {
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
-        handTest();
-        //eventLoop();
+        //handTest();
+        eventLoop();
     }
 }
 
@@ -135,9 +135,9 @@ void eventLoop() {
             // Heartbeat event
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
-                //compRxEvent = LOCKED;
-                //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
-                //events |= POS_EVENT_GROUP; // TODO: remove this.
+                compRxEvent = LOCKED;
+                heartbeatEventHandler(); // TODO: this doesn't do anything right now.
+                events |= POS_EVENT_GROUP; // TODO: remove this.
             }
             
             // Position event group - wait for all bits to be set
@@ -213,6 +213,7 @@ void multiJointTest() {
     } 
 }
 
+// automated test that opens and closes the hand
 void handTest() {
     
     while(1) {

@@ -153,9 +153,8 @@ int compRxEventHandler() {
         case wristspinhi:
             ArmPayload.wristSpinDest |= byte << 8;
             // TODO: call dynamixel command
-            compRxState = pre0;
+            compRxState = handlo;
             break;
-        /*
         case handlo:
             ArmPayload.handDest = byte;
             compRxState = handhi;
@@ -165,7 +164,7 @@ int compRxEventHandler() {
             driveHand(ArmPayload.handDest);
             compRxState = pre0;
             break;
-        */
+        
         default:
             // shouldn't get here!!!
             break;
