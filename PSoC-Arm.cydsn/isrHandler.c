@@ -189,7 +189,7 @@ void driveHand(uint16_t pos) {
     else if (pos > SERVO_MAX) {
         pos = SERVO_MAX;
     }
-    PWM_Hand_WriteCompare(pos);
+    PWM_Hand_WriteCompare1(pos);
 }
 
 // Ask the motor controller boards for feedback.

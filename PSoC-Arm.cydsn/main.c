@@ -58,6 +58,9 @@ void multiJointTest();
 // an automated test to open and close the hand.
 void handTest();
 
+// an automated test to actuate the solenoids to open/close the chute doors
+void chuteTest();
+
 // CompRxEvent will not happen if this is locked.
 enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
 
@@ -69,21 +72,33 @@ int main() {
     // Initialize variables
     events = 0; // no pending events initially
     compRxEvent = UNLOCKED; // allow computer to talk to us
+    chute1_Write(0); // all chutes are closed
+    chute2_Write(0);
+    chute3_Write(0);
+    chute4_Write(0);
+    chute5_Write(0);
+    chute6_Write(0);
+    LED0_Write(0); // LED is initially off
     
     // Enable global interrupts
     CyGlobalIntEnable;
     
-    // Initialize and start hardware components
-    LED0_Write(0); // LED is initially off
-    
-    // heartbeat timer
-    Clock_2_Start();
-    HeartbeatCounter_Start();
-    Heartbeat_ISR_StartEx(HeartbeatISR);
+    // Initialize and start hardware components:
     
     // computer uart
     UART_Computer_Start();
     Comp_RX_ISR_StartEx(CompRxISR);
+    
+    // drive
+    Clock_PWM_Start();
+    PWM_Drive_Start();
+    PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Drive_WriteCompare2(SERVO_NEUTRAL);
+    
+    // gimbal (main camera pan/tilt)
+    PWM_Gimbal_Start();
+    PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
     
     // turret
     UART_Turret_Start();
@@ -108,16 +123,18 @@ int main() {
     // wrist uart
     // TODO: initialize this here
     
-    // hand pwm
-    Clock_2_Start();
+    // hand pwm (also the heartbeat timer).
     PWM_Hand_Start();
-    PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+    PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
+    heartbeatIsr_StartEx(HeartbeatISR);
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
         //handTest();
-        eventLoop();
+        chuteTest();
+        //eventLoop();
     }
 }
 
@@ -153,6 +170,27 @@ void eventLoop() {
                 // TODO: manage invalid event
             }
         }
+    }
+}
+
+void chuteTest() {
+    while(1) {
+        TOGGLE_LED0;
+        chute1_Write(0);
+        chute2_Write(0);
+        chute3_Write(0);
+        chute4_Write(0);
+        chute5_Write(0);
+        chute6_Write(0);
+        CyDelay(2000);
+        TOGGLE_LED0;
+        chute1_Write(1);
+        chute2_Write(1);
+        chute3_Write(1);
+        chute4_Write(1);
+        chute5_Write(1);
+        chute6_Write(1);
+        CyDelay(2000);
     }
 }
 
@@ -217,16 +255,16 @@ void multiJointTest() {
 void handTest() {
     
     while(1) {
-        PWM_Hand_WriteCompare(SERVO_MAX);
+        PWM_Hand_WriteCompare1(SERVO_MAX);
         TOGGLE_LED0;
         CyDelay(4000);
-        PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+        PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(4000);
-        PWM_Hand_WriteCompare(SERVO_MIN);
+        PWM_Hand_WriteCompare1(SERVO_MIN);
         TOGGLE_LED0;
         CyDelay(4000);
-        PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+        PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(4000);
     }

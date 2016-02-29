@@ -131,12 +131,19 @@ CY_ISR(ForearmRxISR) {
 
 //CY_ISR_PROTO(HeartbeatISR);
 CY_ISR(HeartbeatISR) {
-    // clears interrupt on counter module
-    HeartbeatCounter_GetInterruptSource();
-    Heartbeat_ISR_ClearPending();
+    static unsigned count = 0;
     
-    // queue up heartbeat event
-    events |= HEARTBEAT_EVENT;
+    // clears interrupt on counter module
+    PWM_Hand_ReadStatusRegister();
+    heartbeatIsr_ClearPending();
+    
+    // Use count as a divider - only queue up event every 5 interrupts
+    count++;
+    if (count >= 5) {
+        count = 0;
+        // queue up heartbeat event
+        events |= HEARTBEAT_EVENT;
+    }
 }
 
 /* [] END OF FILE */
