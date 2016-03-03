@@ -65,7 +65,6 @@ void chuteTest();
 enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
 
 int main() {
-    
     // 5 second delay before we start everything up
     CyDelay(5000);
     
@@ -132,8 +131,8 @@ int main() {
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
-        //handTest();
-        chuteTest();
+        handTest();
+        //chuteTest();
         //eventLoop();
     }
 }
@@ -145,16 +144,7 @@ void eventLoop() {
             // Receive message from computer
             if ((events & COMP_RX_EVENT) && (compRxEvent == UNLOCKED)) {
                 events &= ~COMP_RX_EVENT;
-                TOGGLE_LED0;
                 compRxEventHandler();
-            }
-            
-            // Heartbeat event
-            else if (events & HEARTBEAT_EVENT) {
-                events &= ~HEARTBEAT_EVENT;
-                compRxEvent = LOCKED;
-                heartbeatEventHandler(); // TODO: this doesn't do anything right now.
-                events |= POS_EVENT_GROUP; // TODO: remove this.
             }
             
             // Position event group - wait for all bits to be set
@@ -163,6 +153,14 @@ void eventLoop() {
                 reportPositionEvent();
                 TOGGLE_LED0;
                 compRxEvent = UNLOCKED;
+            }
+            
+            // Heartbeat event
+            else if (events & HEARTBEAT_EVENT) {
+                events &= ~HEARTBEAT_EVENT;
+                compRxEvent = LOCKED;
+                //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
+                events |= POS_EVENT_GROUP; // TODO: remove this.
             }
             
             // Invalid event

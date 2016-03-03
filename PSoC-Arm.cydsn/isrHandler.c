@@ -16,15 +16,21 @@ volatile uint32_t events = 0;
 
 // Arm payload struct
 // These are the last positions we wrote to the motors
-static struct ArmPayload {
+static struct Payload {
+    uint16_t leftWheels;
+    uint16_t rightWheels;
+    uint16_t cameraPan;
+    uint16_t cameraTilt;
+    uint8_t cameraNum;
+    uint8_t chutes;
     uint16_t turretDest;
     uint16_t shoulderDest;
     uint16_t elbowDest;
     uint16_t forearmDest;
     uint16_t wristTiltDest;
     uint16_t wristSpinDest;
-    uint16_t handDest; // really just open/close
-} ArmPayload;
+    uint16_t handDest;
+} Payload;
 
 // Arm positions
 // These are the most recent positions received as feedback from the motors
@@ -43,14 +49,21 @@ extern volatile uint16_t wristSpinPos;
 // forearmlo, forearmhi, wristspinlo, wristspinhi, wristtiltlo, wristtilthi]
 static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 
+// PWM values for video mux out of 5 video selects
+#define VIDEO1 1000
+#define VIDEO2 1250
+#define VIDEO3 1500
+#define VIDEO4 1750
+#define VIDEO5 2000
+
 // State machine states to receive commands from computer
 // The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
-#define PREAMBLE1 0xE3
-static enum compRxStates_e { pre0, pre1, turretlo, turrethi, shoulderlo, 
+static enum compRxStates_e { pre0, leftlo, lefthi, rightlo, righthi, campanlo,
+    campanhi, camtiltlo, camtilthi, camnum, turretlo, turrethi, shoulderlo, 
     shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
     wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
-    handlo, handhi } compRxState;
+    handlo, handhi, chutes } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -84,87 +97,147 @@ int compRxEventHandler() {
         switch(compRxState) {
         case pre0:
             if (byte == PREAMBLE0) {
-                compRxState = pre1; // change state
+                compRxState = leftlo; // change state
             }
             break;
-        case pre1:
-            if (byte == PREAMBLE1) {
-                compRxState = turretlo; // change state
+        case leftlo:
+            Payload.leftWheels = byte;
+            compRxState = lefthi;
+            break;
+        case lefthi:
+            Payload.leftWheels |= byte << 8;
+            PWM_Drive_WriteCompare1(Payload.leftWheels);
+            compRxState = rightlo;
+            break;
+        case rightlo:
+            Payload.rightWheels = byte;
+            compRxState = righthi;
+            break;
+        case righthi:
+            Payload.rightWheels |= byte << 8;
+            PWM_Drive_WriteCompare2(Payload.rightWheels);
+            compRxState = campanlo;
+            break;
+        case campanlo:
+            Payload.cameraPan = byte;
+            compRxState = campanhi;
+            break;
+        case campanhi:
+            Payload.cameraPan |= byte << 8;
+            compRxState = camtiltlo;
+            PWM_Gimbal_WriteCompare1(Payload.cameraPan);
+            compRxState = camtiltlo;
+            break;
+        case camtiltlo:
+            Payload.cameraTilt = byte;
+            compRxState = camtilthi;
+            break;
+        case camtilthi:
+            Payload.cameraTilt |= byte << 8;
+            PWM_Gimbal_WriteCompare2(Payload.cameraTilt);
+            compRxState = camnum;
+            break;
+        case camnum:
+            switch(byte) {
+            case 1:
+                PWM_Hand_WriteCompare1(VIDEO1);
+                break;
+            case 2:
+                PWM_Hand_WriteCompare1(VIDEO2);
+                break;
+            case 3:
+                PWM_Hand_WriteCompare1(VIDEO3);
+                break;
+            case 4:
+                PWM_Hand_WriteCompare1(VIDEO4);
+                break;
+            case 5:
+                PWM_Hand_WriteCompare1(VIDEO5);
+                break;
+            default:
+                PWM_Hand_WriteCompare1(VIDEO1);
+                break;
             }
-            else {
-                compRxState = pre0; // change state
-                return MESSAGE_ERROR;
-            }
+            compRxState = turretlo;
             break;
         case turretlo:
-            ArmPayload.turretDest = byte;
+            Payload.turretDest = byte;
             compRxState = turrethi; // change state
             break;
         case turrethi:
-            ArmPayload.turretDest |= byte << 8;
-            pololuControl_driveMotor(ArmPayload.turretDest,
+            Payload.turretDest |= byte << 8;
+            pololuControl_driveMotor(Payload.turretDest,
                 POLOLUCONTROL_TURRET);
             compRxState = shoulderlo; // change state
             break;
         case shoulderlo:
-            ArmPayload.shoulderDest = byte;
+            Payload.shoulderDest = byte;
             compRxState = shoulderhi; // change state
             break;
         case shoulderhi:
-            ArmPayload.shoulderDest |= byte << 8;
-            pololuControl_driveMotor(ArmPayload.shoulderDest, 
+            Payload.shoulderDest |= byte << 8;
+            pololuControl_driveMotor(Payload.shoulderDest, 
                 POLOLUCONTROL_SHOULDER);
             compRxState = elbowlo; // change state
             break;
         case elbowlo:
-            ArmPayload.elbowDest = byte;
+            Payload.elbowDest = byte;
             compRxState = elbowhi; // change state
             break;
         case elbowhi:
-            ArmPayload.elbowDest |= byte << 8;
-            pololuControl_driveMotor(ArmPayload.elbowDest,
+            Payload.elbowDest |= byte << 8;
+            pololuControl_driveMotor(Payload.elbowDest,
                 POLOLUCONTROL_ELBOW);
             compRxState = forearmlo; // change state
             break;
         case forearmlo:
-            ArmPayload.forearmDest = byte;
+            Payload.forearmDest = byte;
             compRxState = forearmhi;
             break;
         case forearmhi:
-            ArmPayload.forearmDest |= byte << 8;
-            pololuControl_driveMotor(ArmPayload.forearmDest,
+            Payload.forearmDest |= byte << 8;
+            pololuControl_driveMotor(Payload.forearmDest,
                 POLOLUCONTROL_FOREARM);
             compRxState = wristtiltlo; // change state
             break;
             // TODO: call dynamixel commands
         case wristtiltlo:
-            ArmPayload.wristTiltDest = byte;
+            Payload.wristTiltDest = byte;
             compRxState = wristtilthi; // change state
             break;
         case wristtilthi:
-            ArmPayload.wristTiltDest |= byte << 8;
+            Payload.wristTiltDest |= byte << 8;
             // TODO: call dynamixel command
             compRxState = wristspinlo; // change state
             break;
         case wristspinlo:
-            ArmPayload.wristSpinDest = byte;
+            Payload.wristSpinDest = byte;
             compRxState = wristspinhi; // change state
             break;
         case wristspinhi:
-            ArmPayload.wristSpinDest |= byte << 8;
+            Payload.wristSpinDest |= byte << 8;
             // TODO: call dynamixel command
             compRxState = handlo;
             break;
         case handlo:
-            ArmPayload.handDest = byte;
+            Payload.handDest = byte;
             compRxState = handhi;
             break;
         case handhi:
-            ArmPayload.handDest |= byte << 8;
-            driveHand(ArmPayload.handDest);
+            Payload.handDest |= byte << 8;
+            driveHand(Payload.handDest);
+            compRxState = chutes;
+            break;
+        case chutes:
+            // the chute values are packed into the first 6 bits of the byte
+            chute1_Write(byte & 0x01);
+            chute2_Write((byte >> 1) & 0x01);
+            chute3_Write((byte >> 2) & 0x01);
+            chute4_Write((byte >> 3) & 0x01);
+            chute5_Write((byte >> 4) & 0x01);
+            chute6_Write((byte >> 5) & 0x01);
             compRxState = pre0;
             break;
-        
         default:
             // shouldn't get here!!!
             break;
@@ -195,20 +268,20 @@ void driveHand(uint16_t pos) {
 // Ask the motor controller boards for feedback.
 void heartbeatEventHandler() {
     // Turret
-    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-	//	POLOLUCONTROL_TURRET);
+    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+		POLOLUCONTROL_TURRET);
     
     // Shoulder
-    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-	//	POLOLUCONTROL_SHOULDER);
+    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+		POLOLUCONTROL_SHOULDER);
     
     // Elbow
-    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-	//	POLOLUCONTROL_ELBOW);
+    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+		POLOLUCONTROL_ELBOW);
     
     // Forearm
-    //pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
-	//	POLOLUCONTROL_FOREARM);
+    pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
+		POLOLUCONTROL_FOREARM);
 	
     // Wrist tilt
     // TODO: call dynamixelReadPosition() for wrist tilt
@@ -219,12 +292,12 @@ void heartbeatEventHandler() {
 
 // Report received positional feedback to the computer.
 void reportPositionEvent() {
-    static int i = 0;
-    i++;
-    turretPos += i;
-    shoulderPos += 2*i;
-    elbowPos += 3*i;
-    forearmPos += 4*i;
+    //static int i = 0;
+    //i++;
+    //turretPos += i;
+    //shoulderPos += 2*i;
+    //elbowPos += 3*i;
+    //forearmPos += 4*i;
     // Send positions to computer
     positionArray[0] = 0xE3; // start byte;
     positionArray[1] =  (turretPos & 0xff);
