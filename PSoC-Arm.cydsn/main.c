@@ -25,8 +25,8 @@
 *     Positions for each of the 7 joints (2 bytes per position) - turret,
 *       shoulder, elbow, forearm, wristtilt, wristspin, hand (close/open)
 *     
-*   Transmit to computer:
-*     2-byte preface
+*   Feedback (transmit to computer):
+*     1-byte preface
 *     Current positions of each of the 6 arm motors (not the hand)
 *
 * Events:
@@ -60,6 +60,12 @@ void handTest();
 
 // an automated test to actuate the solenoids to open/close the chute doors
 void chuteTest();
+
+// an automated test to move the gimbal (main camera pan and tilt)
+void gimbalTest();
+
+// a function that resets everything
+void resetAll();
 
 // CompRxEvent will not happen if this is locked.
 enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
@@ -131,19 +137,24 @@ int main() {
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
         //multiJointTest();
-        handTest();
+        //handTest();
         //chuteTest();
-        //eventLoop();
+        //gimbalTest();
+        eventLoop();
     }
 }
 
 void eventLoop() {
+    #define TIMEOUT 6
+    static int timeout = 0;
     // Main loop
     while(1) {
         if (events) {
             // Receive message from computer
             if ((events & COMP_RX_EVENT) && (compRxEvent == UNLOCKED)) {
                 events &= ~COMP_RX_EVENT;
+                TOGGLE_LED0;
+                timeout = 0; // reset timeout counter
                 compRxEventHandler();
             }
             
@@ -151,13 +162,16 @@ void eventLoop() {
             else if ((events & POS_EVENT_GROUP) == POS_EVENT_GROUP) {
                 events &= ~POS_EVENT_GROUP; // clear event group
                 reportPositionEvent();
-                TOGGLE_LED0;
                 compRxEvent = UNLOCKED;
             }
             
             // Heartbeat event
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
+                timeout++;
+                if (timeout >= TIMEOUT) {
+                    resetAll();
+                }
                 compRxEvent = LOCKED;
                 //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
                 events |= POS_EVENT_GROUP; // TODO: remove this.
@@ -169,6 +183,30 @@ void eventLoop() {
             }
         }
     }
+}
+
+// a function that resets everything
+void resetAll() {
+    chute1_Write(0); // all chutes are closed
+    chute2_Write(0);
+    chute3_Write(0);
+    chute4_Write(0);
+    chute5_Write(0);
+    chute6_Write(0);
+    LED0_Write(0); // LED is initially off
+    
+    PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
+    PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Drive_WriteCompare2(SERVO_NEUTRAL);
+    
+    pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
+    pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
+    pololuControl_turnMotorOff(POLOLUCONTROL_SHOULDER);
+    pololuControl_turnMotorOff(POLOLUCONTROL_TURRET);
+    
+    PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
 }
 
 void chuteTest() {
@@ -263,6 +301,24 @@ void handTest() {
         TOGGLE_LED0;
         CyDelay(4000);
         PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
+        TOGGLE_LED0;
+        CyDelay(4000);
+    }
+}
+
+// an automated test to move the gimbal (main camera pan and tilt)
+void gimbalTest() {
+    while (1) {
+        PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
+        PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
+        TOGGLE_LED0;
+        CyDelay(4000);
+        PWM_Gimbal_WriteCompare1(SERVO_MIN);
+        PWM_Gimbal_WriteCompare2(SERVO_MIN);
+        TOGGLE_LED0;
+        CyDelay(4000);
+        PWM_Gimbal_WriteCompare1(SERVO_MAX);
+        PWM_Gimbal_WriteCompare2(SERVO_MAX);
         TOGGLE_LED0;
         CyDelay(4000);
     }
