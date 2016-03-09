@@ -49,13 +49,6 @@ extern volatile uint16_t wristSpinPos;
 // forearmlo, forearmhi, wristspinlo, wristspinhi, wristtiltlo, wristtilthi]
 static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 
-// PWM values for video mux out of 5 video selects
-#define VIDEO1 1000
-#define VIDEO2 1250
-#define VIDEO3 1500
-#define VIDEO4 1750
-#define VIDEO5 2000
-
 // State machine states to receive commands from computer
 // The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
@@ -63,7 +56,7 @@ static enum compRxStates_e { pre0, leftlo, lefthi, rightlo, righthi, campanlo,
     campanhi, camtiltlo, camtilthi, camnum, turretlo, turrethi, shoulderlo, 
     shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
     wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
-    handlo, handhi, chutes } compRxState;
+    handlo, handhi, chutes, probe, boxLid } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -140,22 +133,16 @@ int compRxEventHandler() {
         case camnum:
             switch(byte) {
             case 1:
-                PWM_Hand_WriteCompare1(VIDEO1);
+                PWM_VideoMux_WriteCompare(VIDEO1);
                 break;
             case 2:
-                PWM_Hand_WriteCompare1(VIDEO2);
+                PWM_VideoMux_WriteCompare(VIDEO2);
                 break;
             case 3:
-                PWM_Hand_WriteCompare1(VIDEO3);
-                break;
-            case 4:
-                PWM_Hand_WriteCompare1(VIDEO4);
-                break;
-            case 5:
-                PWM_Hand_WriteCompare1(VIDEO5);
+                PWM_VideoMux_WriteCompare(VIDEO3);
                 break;
             default:
-                PWM_Hand_WriteCompare1(VIDEO1);
+                PWM_VideoMux_WriteCompare(VIDEO1);
                 break;
             }
             compRxState = turretlo;
@@ -236,6 +223,24 @@ int compRxEventHandler() {
             chute4_Write((byte >> 3) & 0x01);
             chute5_Write((byte >> 4) & 0x01);
             chute6_Write((byte >> 5) & 0x01);
+            compRxState = pre0;
+            break;
+        case probe:
+            if (byte == 0) { // retract
+                PWM_BoxLid_WriteCompare(SERVO_MIN);
+            }
+            else { // extend
+                PWM_BoxLid_WriteCompare(SERVO_MAX);
+            }
+            compRxState = boxLid;
+            break;
+        case boxLid:
+            if (byte == 0) { // close
+                PWM_BoxLid_WriteCompare(SERVO_MAX);
+            }
+            else { // open
+                PWM_BoxLid_WriteCompare(SERVO_MIN);
+            }
             compRxState = pre0;
             break;
         default:

@@ -50,5 +50,12 @@ void driveHand(uint16_t pos);
 #define UART_READ_ERROR 1
 #define MESSAGE_ERROR 2
 
+// PWM values for video mux out of 5 video selects
+#define VIDEO1 1000
+#define VIDEO2 1250
+#define VIDEO3 1500
+#define VIDEO4 1750
+#define VIDEO5 2000
+
 #endif
 /* [] END OF FILE */
