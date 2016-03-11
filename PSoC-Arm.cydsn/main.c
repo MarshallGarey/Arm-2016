@@ -41,6 +41,36 @@
 *     Sends feedback positions to onboard computer
 *     Unlock the computer receive message event.
 *
+* Delta Sigma ADC:
+* Differential - if Vref = 1.024 V, and Vn is 2.048 V, the input range is
+*     -Vn +- Vref = 2.048 +- -1.024 or (1.024 - 3.096 V)
+*     If I connect Vn to the same as Vref, the input range is 0 - 2*Vref
+* Or I can tie Vn to ground and the input range would be -Vref - +Vref
+* I can switch between multiple configurations of this ADC during runtime.
+* This will be useful because I can have one ADC for both humidity and
+* temperature measurements.
+* I'd have to use a hardware mux to select which input to use.
+* I can also set the input gain to 1, 2, 4, or 8.
+* This ADC has filtering, so I may not need to filter separately.
+* When ADC is in the differential mode, the full input range will always be 
+* symmetrical around zero. When in single ended mode, the input range will be
+* from just below Vssa to the full scale value.
+*
+* If I set the ADC to 16 bits, get the 32-bit result. If I use 8-bit ADC, get
+* the 16-bit version. (This is to prevent under/overflow.)
+*
+* API:
+* StartConvert(), StopConvert(), IRQ_Enable(), IRQ_Disable(), GetResult8/16/32,
+* SelectConfiguration(uint8 config, uint8 restart)
+*     config - 1, 2, 3, or 4
+*     restart - 1 means start the ADC and restart the conversion.
+*               0 means do not start the ADC and conversion.
+* int16 CountsTo_mVolts - For example, if the ADC measured 0.534 V,
+*     the return value would be 534 mV. The calculation of voltage depends
+*     on the value of the voltage reference
+* int32 CountsTo_uVolts
+* float CountsTo_Volts
+*
 * ========================================================================= */
 #include <project.h>
 #include "isr.h"

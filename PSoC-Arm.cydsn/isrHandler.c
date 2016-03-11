@@ -225,6 +225,7 @@ int compRxEventHandler() {
             chute6_Write((byte >> 5) & 0x01);
             compRxState = pre0;
             break;
+            /*
         case probe:
             if (byte == 0) { // retract
                 PWM_BoxLid_WriteCompare(SERVO_MIN);
@@ -243,6 +244,7 @@ int compRxEventHandler() {
             }
             compRxState = pre0;
             break;
+            */
         default:
             // shouldn't get here!!!
             break;
