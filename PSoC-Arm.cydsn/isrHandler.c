@@ -30,6 +30,7 @@ static struct Payload {
     uint16_t wristTiltDest;
     uint16_t wristSpinDest;
     uint16_t handDest;
+    uint16_t shovel;
 } Payload;
 
 // Arm positions
@@ -53,10 +54,10 @@ static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 // The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
 static enum compRxStates_e { pre0, leftlo, lefthi, rightlo, righthi, campanlo,
-    campanhi, camtiltlo, camtilthi, camnum, turretlo, turrethi, shoulderlo, 
+    campanhi, camtiltlo, camtilthi, cam1, cam2, turretlo, turrethi, shoulderlo, 
     shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
     wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
-    handlo, handhi, chutes, probe, boxLid } compRxState;
+    handlo, handhi, chutes, shovello, shovelhi, boxLid } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -128,9 +129,29 @@ int compRxEventHandler() {
         case camtilthi:
             Payload.cameraTilt |= byte << 8;
             PWM_Gimbal_WriteCompare2(Payload.cameraTilt);
-            compRxState = camnum;
+            compRxState = cam1;
             break;
-        case camnum:
+        case cam1:
+            switch(byte) {
+            case 1:
+                PWM_VideoMux2_WriteCompare(VIDEO1);
+                break;
+            case 2:
+                PWM_VideoMux2_WriteCompare(VIDEO2);
+                break;
+            case 3:
+                PWM_VideoMux2_WriteCompare(VIDEO3);
+                break;
+            default:
+                PWM_VideoMux2_WriteCompare(VIDEO1);
+                break;
+            }
+            break;
+            compRxState = turretlo;
+            /*
+            compRxState = cam2;
+            break;
+        case cam2:
             switch(byte) {
             case 1:
                 PWM_VideoMux_WriteCompare(VIDEO1);
@@ -146,6 +167,7 @@ int compRxEventHandler() {
                 break;
             }
             compRxState = turretlo;
+            */
             break;
         case turretlo:
             Payload.turretDest = byte;
@@ -223,28 +245,23 @@ int compRxEventHandler() {
             chute4_Write((byte >> 3) & 0x01);
             chute5_Write((byte >> 4) & 0x01);
             chute6_Write((byte >> 5) & 0x01);
+            if ((byte >> 6) & 0x01) {
+                PWM_BoxLid_WriteCompare(SERVO_MIN); // open box
+            }
+            else {
+                PWM_BoxLid_WriteCompare(SERVO_MAX); // close box
+            }
+            compRxState = shovello;
+            break;
+        case shovello:
+            Payload.shovel = byte;
+            compRxState = shovelhi;
+            break;
+        case shovelhi:
+            Payload.shovel |= (byte << 8);
+            PWM_Hand_WriteCompare2(Payload.shovel);
             compRxState = pre0;
             break;
-            /*
-        case probe:
-            if (byte == 0) { // retract
-                PWM_BoxLid_WriteCompare(SERVO_MIN);
-            }
-            else { // extend
-                PWM_BoxLid_WriteCompare(SERVO_MAX);
-            }
-            compRxState = boxLid;
-            break;
-        case boxLid:
-            if (byte == 0) { // close
-                PWM_BoxLid_WriteCompare(SERVO_MAX);
-            }
-            else { // open
-                PWM_BoxLid_WriteCompare(SERVO_MIN);
-            }
-            compRxState = pre0;
-            break;
-            */
         default:
             // shouldn't get here!!!
             break;

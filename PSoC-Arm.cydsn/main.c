@@ -160,8 +160,8 @@ int main() {
     
     // hand pwm (also the heartbeat timer).
     PWM_Hand_Start();
-    PWM_Hand_WriteCompare1(SERVO_NEUTRAL); // hand/excavator
-    PWM_Hand_WriteCompare2(SERVO_NEUTRAL); // temperature probe
+    PWM_Hand_WriteCompare1(SERVO_NEUTRAL); // hand/temperature probe
+    PWM_Hand_WriteCompare2(SERVO_NEUTRAL); // excavator
     heartbeatIsr_StartEx(HeartbeatISR);
     
     // sample box pwm
@@ -171,6 +171,9 @@ int main() {
     // video mux
     PWM_VideoMux_Start();
     PWM_VideoMux_WriteCompare(VIDEO1);
+    
+    PWM_VideoMux2_Start();
+    PWM_VideoMux2_WriteCompare(VIDEO2);
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
