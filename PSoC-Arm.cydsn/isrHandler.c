@@ -11,6 +11,7 @@
 */
 #include "isrHandler.h"
 #include "pololuControl.h"
+#include "wrist.h"
 
 volatile uint32_t events = 0;
 
@@ -54,10 +55,10 @@ static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
 // The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
 static enum compRxStates_e { pre0, leftlo, lefthi, rightlo, righthi, campanlo,
-    campanhi, camtiltlo, camtilthi, cam1, cam2, turretlo, turrethi, shoulderlo, 
-    shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
+    campanhi, camtiltlo, camtilthi, cam1, cam2, turretlo, turrethi, 
+    shoulderlo, shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
     wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
-    handlo, handhi, chutes, shovello, shovelhi, boxLid } compRxState;
+    handlo, handhi, chutes, shovello, shovelhi } compRxState;
 
 // Receive a message from the computer
 int compRxEventHandler() {
@@ -146,8 +147,9 @@ int compRxEventHandler() {
                 PWM_VideoMux2_WriteCompare(VIDEO1);
                 break;
             }
-            break;
+            
             compRxState = turretlo;
+            break;
             /*
             compRxState = cam2;
             break;
@@ -167,8 +169,8 @@ int compRxEventHandler() {
                 break;
             }
             compRxState = turretlo;
-            */
-            break;
+            
+            break;*/
         case turretlo:
             Payload.turretDest = byte;
             compRxState = turrethi; // change state
@@ -209,7 +211,6 @@ int compRxEventHandler() {
                 POLOLUCONTROL_FOREARM);
             compRxState = wristtiltlo; // change state
             break;
-            // TODO: call dynamixel commands
         case wristtiltlo:
             Payload.wristTiltDest = byte;
             compRxState = wristtilthi; // change state
@@ -217,6 +218,7 @@ int compRxEventHandler() {
         case wristtilthi:
             Payload.wristTiltDest |= byte << 8;
             // TODO: call dynamixel command
+            //wristGoalPosition(WRIST_TILT_ID, Payload.wristTiltDest);
             compRxState = wristspinlo; // change state
             break;
         case wristspinlo:
@@ -226,6 +228,7 @@ int compRxEventHandler() {
         case wristspinhi:
             Payload.wristSpinDest |= byte << 8;
             // TODO: call dynamixel command
+            //wristGoalPosition(WRIST_ROTATE_ID, Payload.wristTiltDest);
             compRxState = handlo;
             break;
         case handlo:

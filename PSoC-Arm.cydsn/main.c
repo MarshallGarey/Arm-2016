@@ -76,6 +76,7 @@
 #include "isr.h"
 #include "isrHandler.h"
 #include "pololuControl.h"
+#include "wrist.h"
 
 #define TOGGLE_LED0 LED0_Write(!LED0_Read())
 
@@ -87,6 +88,7 @@ void multiJointTest();
 
 // an automated test to open and close the hand.
 void handTest();
+void shovelTest();
 
 // an automated test to actuate the solenoids to open/close the chute doors
 void chuteTest();
@@ -157,6 +159,14 @@ int main() {
     
     // wrist uart
     // TODO: initialize this here
+    //UART_Wrist_Start();
+    //WristRxIsr_StartEx(WristRxISR);
+    
+    //Initialize the dynamixels
+    //wristSpeed(0xFE, 300); // also only do once
+    //setWristTorque(0xFE, 0x03FF); // maximum
+    //wristGoalPosition(WRIST_TILT_ID, 2048);
+    //wristGoalPosition(WRIST_ROTATE_ID, 2048);
     
     // hand pwm (also the heartbeat timer).
     PWM_Hand_Start();
@@ -179,9 +189,10 @@ int main() {
     while(1) {
         //multiJointTest();
         //handTest();
+        shovelTest();
         //chuteTest();
         //gimbalTest();
-        eventLoop();
+        //eventLoop();
     }
 }
 
@@ -342,6 +353,25 @@ void handTest() {
         TOGGLE_LED0;
         CyDelay(4000);
         PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
+        TOGGLE_LED0;
+        CyDelay(4000);
+    }
+}
+
+// automated test that opens and closes the hand
+void shovelTest() {
+    
+    while(1) {
+        PWM_Hand_WriteCompare2(SERVO_MAX);
+        TOGGLE_LED0;         
+        CyDelay(4000);       
+        PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
+        TOGGLE_LED0;         
+        CyDelay(4000);       
+        PWM_Hand_WriteCompare2(SERVO_MIN);
+        TOGGLE_LED0;         
+        CyDelay(4000);       
+        PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(4000);
     }
