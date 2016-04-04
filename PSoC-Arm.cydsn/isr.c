@@ -1,12 +1,6 @@
 /* ========================================
- *
- * Copyright YOUR COMPANY, THE YEAR
- * All Rights Reserved
- * UNPUBLISHED, LICENSED SOFTWARE.
- *
- * CONFIDENTIAL AND PROPRIETARY INFORMATION
- * WHICH IS THE PROPERTY OF your company.
- *
+ * BYU Mars Rover 2016
+ * Authors: Marshall Garey, Rodolfo Alberto
  * ========================================
 */
 #include "isr.h"
@@ -126,9 +120,13 @@ CY_ISR(ForearmRxISR) {
 }
 
 //CY_ISR_PROTO(WristRxISR);
-/* CY_ISR(WristRxISR) {
+CY_ISR(WristRxISR) {
+    UART_Wrist_ReadRxStatus(); // clear interrupt
+    WristRxIsr_ClearPending();
     
-} */
+    // TODO: get feedback from wrist rotate and tilt separately, probably with
+    // a state machine. Assume that one always comes before the other.
+}
 
 //CY_ISR_PROTO(HeartbeatISR);
 CY_ISR(HeartbeatISR) {

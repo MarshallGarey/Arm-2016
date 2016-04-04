@@ -1,12 +1,6 @@
 /* ========================================
- *
- * Copyright YOUR COMPANY, THE YEAR
- * All Rights Reserved
- * UNPUBLISHED, LICENSED SOFTWARE.
- *
- * CONFIDENTIAL AND PROPRIETARY INFORMATION
- * WHICH IS THE PROPERTY OF your company.
- *
+ * BYU Mars Rover 2016
+ * Authors: Marshall Garey, Rodolfo Alberto
  * ========================================
 */
 
@@ -158,15 +152,14 @@ int main() {
     pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
     
     // wrist uart
-    // TODO: initialize this here
-    //UART_Wrist_Start();
-    //WristRxIsr_StartEx(WristRxISR);
+    UART_Wrist_Start();
+    WristRxIsr_StartEx(WristRxISR);
     
     //Initialize the dynamixels
-    //wristSpeed(0xFE, 300); // also only do once
-    //setWristTorque(0xFE, 0x03FF); // maximum
-    //wristGoalPosition(WRIST_TILT_ID, 2048);
-    //wristGoalPosition(WRIST_ROTATE_ID, 2048);
+    wristSpeed(0xFE, 300); // also only do once
+    setWristTorque(0xFE, 0x03FF); // maximum
+    wristGoalPosition(WRIST_TILT_ID, 2048);
+    wristGoalPosition(WRIST_ROTATE_ID, 2048);
     
     // hand pwm (also the heartbeat timer).
     PWM_Hand_Start();
@@ -189,10 +182,10 @@ int main() {
     while(1) {
         //multiJointTest();
         //handTest();
-        shovelTest();
+        //shovelTest();
         //chuteTest();
         //gimbalTest();
-        //eventLoop();
+        eventLoop();
     }
 }
 

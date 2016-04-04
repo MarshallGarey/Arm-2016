@@ -1,6 +1,6 @@
 /* ========================================
- * BYU Mars Rover 2015
- * Author: Sam Bury
+ * BYU Mars Rover 2016
+ * Authors: Sam Bury, Marshall Garey
  * ========================================
 */
 #ifndef DYNAMIXEL_H
@@ -20,7 +20,6 @@ void wristSpeed( uint8 servoID, uint16 speed);
 
 
 /*
-
     //Initialize the dynamixels <-- Will do this on the computer
     ServoSpeed(0xFE, 300); // also only do once
     SetServoTorque(0xFE, 0x03FF); // maximum
@@ -32,5 +31,4 @@ void wristSpeed( uint8 servoID, uint16 speed);
 	tilt - 1024 - 3072; 2048 is middle
 	
 	initialize to the middle
-	
 */
