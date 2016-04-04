@@ -70,7 +70,6 @@
 #include "isr.h"
 #include "isrHandler.h"
 #include "pololuControl.h"
-#include "wrist.h"
 
 #define TOGGLE_LED0 LED0_Write(!LED0_Read())
 
@@ -103,12 +102,6 @@ int main() {
     // Initialize variables
     events = 0; // no pending events initially
     compRxEvent = UNLOCKED; // allow computer to talk to us
-    chute1_Write(0); // all chutes are closed
-    chute2_Write(0);
-    chute3_Write(0);
-    chute4_Write(0);
-    chute5_Write(0);
-    chute6_Write(0);
     LED0_Write(0); // LED is initially off
     
     // Enable global interrupts
@@ -151,15 +144,15 @@ int main() {
     ForearmRxIsr_StartEx(ForearmRxISR);
     pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
     
-    // wrist uart
-    UART_Wrist_Start();
-    WristRxIsr_StartEx(WristRxISR);
+    // science uart
+    UART_ScienceMCU_Start();
+    ScienceRxIsr_StartEx(ScienceRxISR);
     
     //Initialize the dynamixels
-    wristSpeed(0xFE, 300); // also only do once
-    setWristTorque(0xFE, 0x03FF); // maximum
-    wristGoalPosition(WRIST_TILT_ID, 2048);
-    wristGoalPosition(WRIST_ROTATE_ID, 2048);
+//    wristSpeed(0xFE, 300); // also only do once
+//    setWristTorque(0xFE, 0x03FF); // maximum
+//    wristGoalPosition(WRIST_TILT_ID, 2048);
+//    wristGoalPosition(WRIST_ROTATE_ID, 2048);
     
     // hand pwm (also the heartbeat timer).
     PWM_Hand_Start();
@@ -232,12 +225,7 @@ void eventLoop() {
 
 // a function that resets everything
 void resetAll() {
-    chute1_Write(0); // all chutes are closed
-    chute2_Write(0);
-    chute3_Write(0);
-    chute4_Write(0);
-    chute5_Write(0);
-    chute6_Write(0);
+    
     LED0_Write(0); // LED is initially off
     
     PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
@@ -245,34 +233,13 @@ void resetAll() {
     PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
     PWM_Drive_WriteCompare2(SERVO_NEUTRAL);
     
-    pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
-    pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
-    pololuControl_turnMotorOff(POLOLUCONTROL_SHOULDER);
     pololuControl_turnMotorOff(POLOLUCONTROL_TURRET);
+    pololuControl_turnMotorOff(POLOLUCONTROL_SHOULDER);
+    pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
+    pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
     
     PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
     PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
-}
-
-void chuteTest() {
-    while(1) {
-        TOGGLE_LED0;
-        chute1_Write(0);
-        chute2_Write(0);
-        chute3_Write(0);
-        chute4_Write(0);
-        chute5_Write(0);
-        chute6_Write(0);
-        CyDelay(2000);
-        TOGGLE_LED0;
-        chute1_Write(1);
-        chute2_Write(1);
-        chute3_Write(1);
-        chute4_Write(1);
-        chute5_Write(1);
-        chute6_Write(1);
-        CyDelay(2000);
-    }
 }
 
 // automated test that moves 4 arm joints (all controlled with 

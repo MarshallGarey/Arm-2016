@@ -5,7 +5,6 @@
 */
 #include "isrHandler.h"
 #include "pololuControl.h"
-#include "wrist.h"
 
 volatile uint32_t events = 0;
 
@@ -236,12 +235,9 @@ int compRxEventHandler() {
             break;
         case chutes:
             // the chute values are packed into the first 6 bits of the byte
-            chute1_Write(byte & 0x01);
-            chute2_Write((byte >> 1) & 0x01);
-            chute3_Write((byte >> 2) & 0x01);
-            chute4_Write((byte >> 3) & 0x01);
-            chute5_Write((byte >> 4) & 0x01);
-            chute6_Write((byte >> 5) & 0x01);
+            // chutes unused for science.
+            
+            // box lid is 7th byte
             if ((byte >> 6) & 0x01) {
                 PWM_BoxLid_WriteCompare(SERVO_MIN); // open box
             }

@@ -14,7 +14,7 @@ CY_ISR_PROTO(TurretRxISR);
 CY_ISR_PROTO(ShoulderRxISR);
 CY_ISR_PROTO(ElbowRxISR);
 CY_ISR_PROTO(ForearmRxISR);
-CY_ISR_PROTO(WristRxISR);
+CY_ISR_PROTO(ScienceRxISR);
 
 #endif
 

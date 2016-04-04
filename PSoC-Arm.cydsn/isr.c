@@ -119,10 +119,10 @@ CY_ISR(ForearmRxISR) {
     }
 }
 
-//CY_ISR_PROTO(WristRxISR);
-CY_ISR(WristRxISR) {
-    UART_Wrist_ReadRxStatus(); // clear interrupt
-    WristRxIsr_ClearPending();
+//CY_ISR_PROTO(ScienceRxISR);
+CY_ISR(ScienceRxISR) {
+    UART_ScienceMCU_ReadRxStatus(); // clear interrupt
+    ScienceRxIsr_ClearPending();
     
     // TODO: get feedback from wrist rotate and tilt separately, probably with
     // a state machine. Assume that one always comes before the other.
