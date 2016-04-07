@@ -12,6 +12,8 @@ volatile uint16_t elbowPos;
 volatile uint16_t forearmPos;
 volatile uint16_t wristTiltPos;
 volatile uint16_t wristSpinPos;
+volatile int16_t temperature;
+volatile int16_t humidity;
 
 //CY_ISR_PROTO(CompRxISR);
 CY_ISR(CompRxISR) {
@@ -124,8 +126,42 @@ CY_ISR(ScienceRxISR) {
     UART_ScienceMCU_ReadRxStatus(); // clear interrupt
     ScienceRxIsr_ClearPending();
     
-    // TODO: get feedback from wrist rotate and tilt separately, probably with
-    // a state machine. Assume that one always comes before the other.
+    // Get feedback from science sensors: temperature and humidity
+    enum states_e { templo, temphi, humlo, humhi };
+    static enum states_e state = templo;
+    
+    // Get next byte from UART
+    int8_t byte;
+    byte = 0xff & UART_ScienceMCU_GetByte();
+    
+    static volatile int16_t temp; // temporary data storage
+    switch (state) {
+    // Temperature low byte
+    case templo:
+        temp = byte;
+        state = temphi;
+        break;
+    // Temperature high byte
+    case temphi:
+        temp |= (byte << 8);
+        temperature = temp; // now assign temperature to this value
+        state = humlo;
+        break;
+    // Humidity low byte
+    case humlo:
+        temp = byte;
+        state = humhi;
+        break;
+    // Humidity high byte
+    case humhi:
+        temp |= (byte << 8);
+        humidity = temp;
+        state = templo;
+        break;
+    // Shouldn't ever get here
+    default:
+        break;
+    }
 }
 
 //CY_ISR_PROTO(HeartbeatISR);

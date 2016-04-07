@@ -242,7 +242,7 @@ void resetAll() {
     PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
 }
 
-// automated test that moves 4 arm joints (all controlled with 
+// automated test that moves 4 arm joints (all controlled with
 // pololu PID boards)
 void multiJointTest() {
     int i;

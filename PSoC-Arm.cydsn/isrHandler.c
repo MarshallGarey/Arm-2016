@@ -27,15 +27,17 @@ static struct Payload {
     uint16_t shovel;
 } Payload;
 
-// Arm positions
+// Arm positions - defined in isr.c
 // These are the most recent positions received as feedback from the motors
 // We really don't need feedback from the hand since it's just open/close.
 extern volatile uint16_t turretPos;
 extern volatile uint16_t shoulderPos;
 extern volatile uint16_t elbowPos;
 extern volatile uint16_t forearmPos;
-extern volatile uint16_t wristTiltPos;
-extern volatile uint16_t wristSpinPos;
+
+// Science sensor data - defined in isr.c
+extern volatile int16_t temperature;
+extern volatile int16_t humidity;
 
 #define POSITION_PAYLOAD_SIZE (13) // 1 start byte, 2 bytes per joint, 6 joints
 // The positions are stored in little endian format - low byte first, then
@@ -78,7 +80,7 @@ int compRxEventHandler() {
             return UART_READ_ERROR;
         }
         
-        // mask the data to a single byte*
+        // mask the data to a single byte
         byte = data & 0xff;
         
         // state machine
@@ -90,40 +92,40 @@ int compRxEventHandler() {
             break;
         case leftlo:
             Payload.leftWheels = byte;
-            compRxState = lefthi;
+            compRxState = lefthi; // change state
             break;
         case lefthi:
             Payload.leftWheels |= byte << 8;
             PWM_Drive_WriteCompare1(Payload.leftWheels);
-            compRxState = rightlo;
+            compRxState = rightlo; // change state
             break;
         case rightlo:
             Payload.rightWheels = byte;
-            compRxState = righthi;
+            compRxState = righthi; // change state
             break;
         case righthi:
             Payload.rightWheels |= byte << 8;
             PWM_Drive_WriteCompare2(Payload.rightWheels);
-            compRxState = campanlo;
+            compRxState = campanlo; // change state
             break;
         case campanlo:
             Payload.cameraPan = byte;
-            compRxState = campanhi;
+            compRxState = campanhi; // change state
             break;
         case campanhi:
             Payload.cameraPan |= byte << 8;
             compRxState = camtiltlo;
             PWM_Gimbal_WriteCompare1(Payload.cameraPan);
-            compRxState = camtiltlo;
+            compRxState = camtiltlo; // change state
             break;
         case camtiltlo:
             Payload.cameraTilt = byte;
-            compRxState = camtilthi;
+            compRxState = camtilthi; // change state
             break;
         case camtilthi:
             Payload.cameraTilt |= byte << 8;
             PWM_Gimbal_WriteCompare2(Payload.cameraTilt);
-            compRxState = cam1;
+            compRxState = cam1; // change state
             break;
         case cam1:
             switch(byte) {
@@ -141,7 +143,7 @@ int compRxEventHandler() {
                 break;
             }
             
-            compRxState = turretlo;
+            compRxState = turretlo; // change state
             break;
             /*
             compRxState = cam2;
@@ -196,7 +198,7 @@ int compRxEventHandler() {
             break;
         case forearmlo:
             Payload.forearmDest = byte;
-            compRxState = forearmhi;
+            compRxState = forearmhi; // change state
             break;
         case forearmhi:
             Payload.forearmDest |= byte << 8;
@@ -222,16 +224,16 @@ int compRxEventHandler() {
             Payload.wristSpinDest |= byte << 8;
             // TODO: call dynamixel command
             //wristGoalPosition(WRIST_ROTATE_ID, Payload.wristTiltDest);
-            compRxState = handlo;
+            compRxState = handlo; // change state
             break;
         case handlo:
             Payload.handDest = byte;
-            compRxState = handhi;
+            compRxState = handhi; // change state
             break;
         case handhi:
             Payload.handDest |= byte << 8;
             driveHand(Payload.handDest);
-            compRxState = chutes;
+            compRxState = chutes; // change state
             break;
         case chutes:
             // the chute values are packed into the first 6 bits of the byte
@@ -244,16 +246,16 @@ int compRxEventHandler() {
             else {
                 PWM_BoxLid_WriteCompare(SERVO_MAX); // close box
             }
-            compRxState = shovello;
+            compRxState = shovello; // change state
             break;
         case shovello:
             Payload.shovel = byte;
-            compRxState = shovelhi;
+            compRxState = shovelhi; // change state
             break;
         case shovelhi:
             Payload.shovel |= (byte << 8);
             PWM_Hand_WriteCompare2(Payload.shovel);
-            compRxState = pre0;
+            compRxState = pre0; // change state
             break;
         default:
             // shouldn't get here!!!
@@ -299,12 +301,6 @@ void heartbeatEventHandler() {
     // Forearm
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_FOREARM);
-	
-    // Wrist tilt
-    // TODO: call dynamixelReadPosition() for wrist tilt
-    
-    // Wrist spin
-    // TODO: call dynamixelReadPosition() for wrist spin
 }
 
 // Report received positional feedback to the computer.
@@ -325,10 +321,10 @@ void reportPositionEvent() {
     positionArray[6] = ((elbowPos  >> 8) & 0xff);
     positionArray[7] =  (forearmPos & 0xff);
     positionArray[8] = ((forearmPos >> 8) & 0xff);
-	positionArray[9] = ((wristTiltPos & 0xff));
-	positionArray[10] = ((wristTiltPos >> 8) & 0xff);
-	positionArray[11] =((wristSpinPos & 0xff));
-	positionArray[12] =((wristSpinPos >> 8) & 0xff);
+	positionArray[9] = ((temperature & 0xff));
+	positionArray[10] = ((temperature >> 8) & 0xff);
+	positionArray[11] =((humidity & 0xff));
+	positionArray[12] =((humidity >> 8) & 0xff);
 	UART_Computer_PutArray(positionArray, POSITION_PAYLOAD_SIZE);
 }
 
