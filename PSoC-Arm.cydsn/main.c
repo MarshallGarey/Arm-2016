@@ -124,6 +124,9 @@ int main() {
     PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
     PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
     
+    // clock for all other uart modules
+    UARTClk_Start();
+    
     // turret
     UART_Turret_Start();
     TurretRxIsr_StartEx(TurretRxISR);
