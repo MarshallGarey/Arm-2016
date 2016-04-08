@@ -8,6 +8,8 @@
 
 #include <project.h>
 
+#define DEBUG_MODE 1
+
 int compRxEventHandler();
 void scienceEventHandler();
 void heartbeatEventHandler();
@@ -15,8 +17,6 @@ void updateTurretPos();
 void updateShoulderPos();
 void updateElbowPos();
 void updateForearmPos();
-
-void reportPosition();
 
 // event variables
 extern volatile uint32_t events;

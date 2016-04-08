@@ -7,6 +7,17 @@
 #include "pololuControl.h"
 #include <stdio.h>
 
+// Sends feedback to the on-board computer
+static void feedbackToOnboardComputer();
+
+// Displays feedback in a readable format to a terminal
+// For debugging only
+static void feedbackToTerminal();
+
+// Generates fake science data and outputs to UART
+static void generateScienceTestData();
+
+// Container for all events. See isrHandler.h for macros that define the events.
 volatile uint32_t events = 0;
 
 // Arm payload struct
@@ -349,28 +360,13 @@ void scienceEventHandler() {
 
 // Report current positions and ask the pololus for updated positions
 void heartbeatEventHandler() {
-    //static int i = 0;
-    //i++;
-    //turretPos += i;
-    //shoulderPos += 2*i;
-    //elbowPos += 3*i;
-    //forearmPos += 4*i;
-    // Send positions to computer
     
-    feedbackArray[0] = 0xE3; // start byte;
-    feedbackArray[1] =  (turretPos & 0xff);
-    feedbackArray[2] = ((turretPos >> 8) & 0xff);
-    feedbackArray[3] =  (shoulderPos & 0xff);
-    feedbackArray[4] = ((shoulderPos >> 8) & 0xff);
-    feedbackArray[5] =  (elbowPos & 0xff);
-    feedbackArray[6] = ((elbowPos  >> 8) & 0xff);
-    feedbackArray[7] =  (forearmPos & 0xff);
-    feedbackArray[8] = ((forearmPos >> 8) & 0xff);
-	feedbackArray[9] = ((temperature & 0xff));
-	feedbackArray[10] = ((temperature >> 8) & 0xff);
-	feedbackArray[11] =((humidity & 0xff));
-	feedbackArray[12] =((humidity >> 8) & 0xff);
-	UART_Computer_PutArray(feedbackArray, POSITION_PAYLOAD_SIZE);
+    #if DEBUG_MODE
+    generateScienceTestData(); // use this to generate fake science data
+    feedbackToTerminal(); // use this to see output on a terminal
+    #else
+    feedbackToOnboardComputer(); // use this to send to on-board computer
+    #endif
     
     // Turret
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
@@ -481,19 +477,69 @@ void updateForearmPos() {
     }
 }
 
-// Report received positional feedback to the computer.
-void reportPosition() {
+// ===========================================================================
+// Helper and debug function definitions
+// ===========================================================================
 
+// Send feedback to computer
+static void feedbackToOnboardComputer() {
+    feedbackArray[0] = 0xE3; // start byte;
+    feedbackArray[1] =  (turretPos & 0xff);
+    feedbackArray[2] = ((turretPos >> 8) & 0xff);
+    feedbackArray[3] =  (shoulderPos & 0xff);
+    feedbackArray[4] = ((shoulderPos >> 8) & 0xff);
+    feedbackArray[5] =  (elbowPos & 0xff);
+    feedbackArray[6] = ((elbowPos  >> 8) & 0xff);
+    feedbackArray[7] =  (forearmPos & 0xff);
+    feedbackArray[8] = ((forearmPos >> 8) & 0xff);
+	feedbackArray[9] = ((temperature & 0xff));
+	feedbackArray[10] = ((temperature >> 8) & 0xff);
+	feedbackArray[11] =((humidity & 0xff));
+	feedbackArray[12] =((humidity >> 8) & 0xff);
+	UART_Computer_PutArray(feedbackArray, POSITION_PAYLOAD_SIZE);
+}
+
+// A debugging function to see output on a terminal
+static void feedbackToTerminal() {
+    //static int i = 0;
+    //i++;
+    //turretPos += i;
+    //shoulderPos += 2*i;
+    //elbowPos += 3*i;
+    //forearmPos += 4*i;
+    //temperature = 5*i;
+    //humidity = 6*i;
+    
+    char pos[34];
+    sprintf(pos, "\n\r\n\rpositions:%4d,%4d,%4d,%4d", 
+        turretPos, shoulderPos, elbowPos, forearmPos);
+    pos[33] = 0; // null terminate
     char tem[5];
     sprintf(tem, "%d", temperature);
-    tem[4] = 0;
+    tem[4] = 0; // null terminate
     char hum[5];
     sprintf(hum, "%d", humidity);
-    hum[4] = 0;
-    UART_Computer_PutString("\n\r\n\rtemp:");
+    hum[4] = 0; // null terminate
+    UART_Computer_PutString(pos);
+    UART_Computer_PutString("\n\rtemp:");
     UART_Computer_PutString(tem);
     UART_Computer_PutString("\n\rhumid:");
     UART_Computer_PutString(hum);
+}
+// Sends pretend data out on science uart
+static void generateScienceTestData() {
+    static uint16_t hum = 0;
+    static uint16_t temp = 0;
+    hum++;
+    temp--;
+    static uint8_t array[6];
+    array[0] = 0xff;
+    array[1] = 0xe9;
+    array[2] = (uint8_t)(temp & 0xff);
+    array[3] = (uint8_t)(temp >> 8) & 0xff;
+    array[4] = (uint8_t)(hum & 0xff);
+    array[5] = (uint8_t)(hum >> 8) & 0xff;
+    UART_ScienceMCU_PutArray(array, 6);
 }
 
 /* [] END OF FILE */

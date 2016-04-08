@@ -72,6 +72,12 @@
 #include "pololuControl.h"
 
 #define TOGGLE_LED0 LED0_Write(!LED0_Read())
+#define FALSE 0
+#define TRUE 1
+
+// Set to false if the board is in normal operation.
+// Set to true when a timeout occurs and the motors are reset.
+int resetMode = FALSE;
 
 // the main event loop
 void eventLoop();
@@ -92,10 +98,6 @@ void gimbalTest();
 // a function that resets everything
 void resetAll();
 
-// A helper function with testing getting science data.
-// Sends pretend data out on science uart
-void scienceTest();
-
 int main() {
     // 5 second delay before we start everything up
     CyDelay(5000);
@@ -103,6 +105,7 @@ int main() {
     // Initialize variables
     events = 0; // no pending events initially
     LED0_Write(0); // LED is initially off
+    resetMode = FALSE;
     
     // Enable global interrupts
     CyGlobalIntEnable;
@@ -194,8 +197,9 @@ void eventLoop() {
             // Receive message from computer
             if (events & COMP_RX_EVENT) {
                 events &= ~COMP_RX_EVENT;
-                //TOGGLE_LED0;
+                TOGGLE_LED0;
                 timeout = 0; // reset timeout counter
+                resetMode = FALSE; // not in reset mode.
                 compRxEventHandler();
             }
             
@@ -233,15 +237,15 @@ void eventLoop() {
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
                 
-                scienceTest(); // sends pretend data out on science uart
-                
+                // If timeout reaches TIMEOUT, stop all motors with resetAll()
                 timeout++;
-                /* if (timeout >= TIMEOUT) {
+                if (timeout >= TIMEOUT && resetMode == FALSE) {
+                    resetMode = TRUE;
                     resetAll();
-                } */
-                //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
-                TOGGLE_LED0;
-                reportPosition();
+                }
+                
+                // Process heartbeat event
+                heartbeatEventHandler();
             }
             
             // Invalid event
@@ -252,26 +256,10 @@ void eventLoop() {
     }
 }
 
-// Sends pretend data out on science uart
-void scienceTest() {
-    static uint16_t hum = 0;
-    static uint16_t temp = 0;
-    hum++;
-    temp--;
-    static uint8_t array[6];
-    array[0] = 0xff;
-    array[1] = 0xe9;
-    array[2] = (uint8_t)(temp & 0xff);
-    array[3] = (uint8_t)(temp >> 8) & 0xff;
-    array[4] = (uint8_t)(hum & 0xff);
-    array[5] = (uint8_t)(hum >> 8) & 0xff;
-    UART_ScienceMCU_PutArray(array, 6);
-}
-
-// a function that resets everything
+// turns off arm motors and resets servos to neutral position.
 void resetAll() {
     
-    LED0_Write(0); // LED is initially off
+    LED0_Write(0);
     
     PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
     PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
