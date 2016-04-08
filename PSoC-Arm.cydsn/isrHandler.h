@@ -8,7 +8,7 @@
 
 #include <project.h>
 
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 int compRxEventHandler();
 void scienceEventHandler();
@@ -47,11 +47,10 @@ void driveHand(uint16_t pos);
 #define MESSAGE_ERROR 2
 
 // PWM values for video mux out of 5 video selects
-#define VIDEO1 1000
-#define VIDEO2 1250
+#define VIDEO1 500
+#define VIDEO2 1000
 #define VIDEO3 1500
-#define VIDEO4 1750
-#define VIDEO5 2000
+#define VIDEO4 2000
 
 #endif
 /* [] END OF FILE */

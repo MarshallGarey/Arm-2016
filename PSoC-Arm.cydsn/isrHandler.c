@@ -303,7 +303,7 @@ void scienceEventHandler() {
     
     // Read until finished getting all bytes in buffer
     while (UART_ScienceMCU_GetRxBufferSize() || 
-          (UART_ScienceMCU_ReadRxStatus() & UART_Computer_RX_STS_FIFO_NOTEMPTY))
+          (UART_ScienceMCU_ReadRxStatus() & UART_ScienceMCU_RX_STS_FIFO_NOTEMPTY))
     {
         // Get next byte from UART
         int16_t byte;
@@ -362,12 +362,15 @@ void scienceEventHandler() {
 void heartbeatEventHandler() {
     
     #if DEBUG_MODE
-    generateScienceTestData(); // use this to generate fake science data
+    //generateScienceTestData(); // use this to generate fake science data
     feedbackToTerminal(); // use this to see output on a terminal
     #else
     feedbackToOnboardComputer(); // use this to send to on-board computer
     #endif
     
+    // Ask Arduino for science sensor data
+    UART_ScienceMCU_PutChar(1);
+
     // Turret
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_TURRET);
@@ -514,12 +517,12 @@ static void feedbackToTerminal() {
     sprintf(pos, "\n\r\n\rpositions:%4d,%4d,%4d,%4d", 
         turretPos, shoulderPos, elbowPos, forearmPos);
     pos[33] = 0; // null terminate
-    char tem[5];
+    char tem[20];
     sprintf(tem, "%d", temperature);
-    tem[4] = 0; // null terminate
-    char hum[5];
+    tem[19] = 0; // null terminate
+    char hum[20];
     sprintf(hum, "%d", humidity);
-    hum[4] = 0; // null terminate
+    hum[19] = 0; // null terminate
     UART_Computer_PutString(pos);
     UART_Computer_PutString("\n\rtemp:");
     UART_Computer_PutString(tem);
