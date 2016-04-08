@@ -104,7 +104,7 @@ int main() {
     
     // Initialize variables
     events = 0; // no pending events initially
-    LED0_Write(0); // LED is initially off
+    LED0_Write(0); // LED off, turns on when we're done initializing
     resetMode = FALSE;
     
     // Enable global interrupts
@@ -176,6 +176,8 @@ int main() {
     
     PWM_VideoMux2_Start();
     PWM_VideoMux2_WriteCompare(VIDEO2);
+    
+    LED0_Write(1); // done initializing
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
@@ -259,8 +261,6 @@ void eventLoop() {
 // turns off arm motors and resets servos to neutral position.
 void resetAll() {
     
-    LED0_Write(0);
-    
     PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
     PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
     PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
@@ -273,6 +273,11 @@ void resetAll() {
     
     PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
     PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
+    
+    PWM_VideoMux_WriteCompare(VIDEO1);
+    PWM_VideoMux2_WriteCompare(VIDEO1);
+    
+    LED0_Write(1);
 }
 
 // automated test that moves 4 arm joints (all controlled with

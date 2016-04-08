@@ -42,14 +42,14 @@ static struct Payload {
 // Arm positions
 // These are the most recent positions received as feedback from the motors
 // We really don't need feedback from the hand since it's just open/close.
-uint16_t turretPos;
-uint16_t shoulderPos;
-uint16_t elbowPos;
-uint16_t forearmPos;
+volatile uint16_t turretPos;
+volatile uint16_t shoulderPos;
+volatile uint16_t elbowPos;
+volatile uint16_t forearmPos;
 
 // Science sensor data
-int16_t temperature = 0;
-int16_t humidity = 0;
+volatile int16_t temperature = 0;
+volatile int16_t humidity = 0;
 
 #define POSITION_PAYLOAD_SIZE (13) // 1 start byte, 2 bytes per joint, 6 joints
 // The positions are stored in little endian format - low byte first, then
@@ -142,16 +142,16 @@ int compRxEventHandler() {
         case cam1:
             switch(byte) {
             case 1:
-                PWM_VideoMux2_WriteCompare(VIDEO1);
+                PWM_VideoMux_WriteCompare(VIDEO1);
                 break;
             case 2:
-                PWM_VideoMux2_WriteCompare(VIDEO2);
+                PWM_VideoMux_WriteCompare(VIDEO2);
                 break;
             case 3:
-                PWM_VideoMux2_WriteCompare(VIDEO3);
+                PWM_VideoMux_WriteCompare(VIDEO3);
                 break;
             default:
-                PWM_VideoMux2_WriteCompare(VIDEO1);
+                PWM_VideoMux_WriteCompare(VIDEO1);
                 break;
             }
             
@@ -163,16 +163,16 @@ int compRxEventHandler() {
         case cam2:
             switch(byte) {
             case 1:
-                PWM_VideoMux_WriteCompare(VIDEO1);
+                PWM_VideoMux2_WriteCompare(VIDEO1);
                 break;
             case 2:
-                PWM_VideoMux_WriteCompare(VIDEO2);
+                PWM_VideoMux2_WriteCompare(VIDEO2);
                 break;
             case 3:
-                PWM_VideoMux_WriteCompare(VIDEO3);
+                PWM_VideoMux2_WriteCompare(VIDEO3);
                 break;
             default:
-                PWM_VideoMux_WriteCompare(VIDEO1);
+                PWM_VideoMux2_WriteCompare(VIDEO1);
                 break;
             }
             compRxState = turretlo;
@@ -367,8 +367,9 @@ void heartbeatEventHandler() {
     #else
     feedbackToOnboardComputer(); // use this to send to on-board computer
     #endif
-    
+
     // Ask Arduino for science sensor data
+    UART_ScienceMCU_PutChar(0xae);
     UART_ScienceMCU_PutChar(1);
 
     // Turret
@@ -386,6 +387,7 @@ void heartbeatEventHandler() {
     // Forearm
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_FOREARM);
+
 }
 
 // Update turret position
