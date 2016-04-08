@@ -92,8 +92,9 @@ void gimbalTest();
 // a function that resets everything
 void resetAll();
 
-// CompRxEvent will not happen if this is locked.
-enum { LOCKED = 0, UNLOCKED = 1 } compRxEvent;
+// A helper function with testing getting science data.
+// Sends pretend data out on science uart
+void scienceTest();
 
 int main() {
     // 5 second delay before we start everything up
@@ -101,7 +102,6 @@ int main() {
     
     // Initialize variables
     events = 0; // no pending events initially
-    compRxEvent = UNLOCKED; // allow computer to talk to us
     LED0_Write(0); // LED is initially off
     
     // Enable global interrupts
@@ -192,30 +192,56 @@ void eventLoop() {
     while(1) {
         if (events) {
             // Receive message from computer
-            if ((events & COMP_RX_EVENT) && (compRxEvent == UNLOCKED)) {
+            if (events & COMP_RX_EVENT) {
                 events &= ~COMP_RX_EVENT;
-                TOGGLE_LED0;
+                //TOGGLE_LED0;
                 timeout = 0; // reset timeout counter
                 compRxEventHandler();
             }
             
-            // Position event group - wait for all bits to be set
-            else if ((events & POS_EVENT_GROUP) == POS_EVENT_GROUP) {
-                events &= ~POS_EVENT_GROUP; // clear event group
-                reportPositionEvent();
-                compRxEvent = UNLOCKED;
+            // Update turret position
+            else if (events & TURRET_POS_EVENT) {
+                events &= ~TURRET_POS_EVENT;
+                updateTurretPos();
             }
             
-            // Heartbeat event
+            // Update shoulder position
+            else if (events & SHOULDER_POS_EVENT) {
+                events &= ~SHOULDER_POS_EVENT;
+                updateShoulderPos();
+            }
+            
+            // Update elbow position
+            else if (events & ELBOW_POS_EVENT) {
+                events &= ~ELBOW_POS_EVENT;
+                updateElbowPos();
+            }
+            
+            // Update forearm position
+            else if (events & FOREARM_POS_EVENT) {
+                events &= ~FOREARM_POS_EVENT;
+                updateForearmPos();
+            }
+            
+            // Get science sensor data
+            else if (events & SCIENCE_EVENT){
+                events &= ~SCIENCE_EVENT;
+                scienceEventHandler();
+            }
+            
+            // Heartbeat event - occurs every 100 ms
             else if (events & HEARTBEAT_EVENT) {
                 events &= ~HEARTBEAT_EVENT;
+                
+                scienceTest(); // sends pretend data out on science uart
+                
                 timeout++;
-                if (timeout >= TIMEOUT) {
+                /* if (timeout >= TIMEOUT) {
                     resetAll();
-                }
-                compRxEvent = LOCKED;
+                } */
                 //heartbeatEventHandler(); // TODO: this doesn't do anything right now.
-                events |= POS_EVENT_GROUP; // TODO: remove this.
+                TOGGLE_LED0;
+                reportPosition();
             }
             
             // Invalid event
@@ -224,6 +250,22 @@ void eventLoop() {
             }
         }
     }
+}
+
+// Sends pretend data out on science uart
+void scienceTest() {
+    static uint16_t hum = 0;
+    static uint16_t temp = 0;
+    hum++;
+    temp--;
+    static uint8_t array[6];
+    array[0] = 0xff;
+    array[1] = 0xe9;
+    array[2] = (uint8_t)(temp & 0xff);
+    array[3] = (uint8_t)(temp >> 8) & 0xff;
+    array[4] = (uint8_t)(hum & 0xff);
+    array[5] = (uint8_t)(hum >> 8) & 0xff;
+    UART_ScienceMCU_PutArray(array, 6);
 }
 
 // a function that resets everything

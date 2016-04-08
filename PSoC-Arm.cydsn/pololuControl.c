@@ -32,7 +32,7 @@ void pololuControl_driveMotor(uint16_t target, uint8_t joint) {
     
     //Computation for converting the target to a binary format
     // that the pololu understands
-    static uint8_t serialBytes[2]; // No need to reallocate this every time
+    static uint8_t serialBytes[2];
     serialBytes[0] = 0xC0 + (target & 0x1F);
     serialBytes[1] = (target >> 5) & 0x7F;
     
@@ -52,10 +52,6 @@ void pololuControl_driveMotor(uint16_t target, uint8_t joint) {
     default:
         break;
     }
-    
-    //Write the low bits first (command) then the high bits (value)
-    //UART_Shoulder_WriteTxData(serialBytes[0]);
-    //UART_Shoulder_WriteTxData(serialBytes[1]);
 }
 
 void pololuControl_readVariable(uint8_t command, uint8_t joint) {
@@ -81,7 +77,6 @@ void pololuControl_readVariable(uint8_t command, uint8_t joint) {
 	else {
 		// TODO: error
 	}
-    return;
 }
 
 /* [] END OF FILE */

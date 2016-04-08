@@ -9,8 +9,14 @@
 #include <project.h>
 
 int compRxEventHandler();
+void scienceEventHandler();
 void heartbeatEventHandler();
-void reportPositionEvent();
+void updateTurretPos();
+void updateShoulderPos();
+void updateElbowPos();
+void updateForearmPos();
+
+void reportPosition();
 
 // event variables
 extern volatile uint32_t events;
@@ -23,18 +29,14 @@ extern volatile uint32_t events;
 #define COMP_RX_EVENT 0x0001
 #define HEARTBEAT_EVENT 0x0002
 
-// positional feedback events
-#define TURRET_POS_EVENT 0x0400
-#define SHOULDER_POS_EVENT 0x0800
-#define ELBOW_POS_EVENT 0x1000
-#define FOREARM_POS_EVENT 0x2000
-#define WRIST_TILT_POS_EVENT 0x4000
-#define WRIST_SPIN_POS_EVENT 0x8000
+// science sensor feedback event
+#define SCIENCE_EVENT 0x0004
 
-// positional feedback event group - just an or of all the position events
-#define POS_EVENT_GROUP (TURRET_POS_EVENT | SHOULDER_POS_EVENT | \
-                        ELBOW_POS_EVENT | FOREARM_POS_EVENT) /* | \
-                        WRIST_TILT_POS_EVENT | WRIST_SPIN_POS_EVENT)*/
+// positional feedback events
+#define TURRET_POS_EVENT 0x0010
+#define SHOULDER_POS_EVENT 0x0020
+#define ELBOW_POS_EVENT 0x0040
+#define FOREARM_POS_EVENT 0x0080
 
 // Hand
 void driveHand(uint16_t pos);

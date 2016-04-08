@@ -5,6 +5,7 @@
 */
 #include "isrHandler.h"
 #include "pololuControl.h"
+#include <stdio.h>
 
 volatile uint32_t events = 0;
 
@@ -27,24 +28,24 @@ static struct Payload {
     uint16_t shovel;
 } Payload;
 
-// Arm positions - defined in isr.c
+// Arm positions
 // These are the most recent positions received as feedback from the motors
 // We really don't need feedback from the hand since it's just open/close.
-extern volatile uint16_t turretPos;
-extern volatile uint16_t shoulderPos;
-extern volatile uint16_t elbowPos;
-extern volatile uint16_t forearmPos;
+uint16_t turretPos;
+uint16_t shoulderPos;
+uint16_t elbowPos;
+uint16_t forearmPos;
 
-// Science sensor data - defined in isr.c
-extern volatile int16_t temperature;
-extern volatile int16_t humidity;
+// Science sensor data
+int16_t temperature = 0;
+int16_t humidity = 0;
 
 #define POSITION_PAYLOAD_SIZE (13) // 1 start byte, 2 bytes per joint, 6 joints
 // The positions are stored in little endian format - low byte first, then
 // high byte, in order from joints closest to the rover outward
 // [turretlo, turrethi, shoulderlo, shoulderhi, elbowlo, elbowhi,
 // forearmlo, forearmhi, wristspinlo, wristspinhi, wristtiltlo, wristtilthi]
-static uint8_t positionArray[POSITION_PAYLOAD_SIZE];
+static uint8_t feedbackArray[POSITION_PAYLOAD_SIZE];
 
 // State machine states to receive commands from computer
 // The state machine is defined in the function compRxEventHandler
@@ -284,8 +285,93 @@ void driveHand(uint16_t pos) {
     PWM_Hand_WriteCompare1(pos);
 }
 
-// Ask the motor controller boards for feedback.
+void scienceEventHandler() {
+    // Get feedback from science sensors: temperature and humidity
+    enum states_e { pre0, pre1, templo, temphi, humlo, humhi };
+    static enum states_e state = templo;
+    
+    // Read until finished getting all bytes in buffer
+    while (UART_ScienceMCU_GetRxBufferSize() || 
+          (UART_ScienceMCU_ReadRxStatus() & UART_Computer_RX_STS_FIFO_NOTEMPTY))
+    {
+        // Get next byte from UART
+        int16_t byte;
+        byte = UART_ScienceMCU_GetByte();
+        if (byte & 0xff00) {
+            return; // Error - ignore byte
+        }
+        static int16_t temp = 0; // temporary data storage
+        
+        switch (state) {
+        // Preamble:
+        case pre0:
+            if (byte == 0xff) {
+                state = pre1;
+            }
+            break;
+        // Preamble 2nd byte:
+        case pre1:
+            if (byte == 0x9e) {
+                state = templo;
+            }
+            else {
+                state = pre0;
+            }
+            break;
+        // Temperature low byte
+        case templo:
+            temp = byte;
+            state = temphi;
+            break;
+        // Temperature high byte
+        case temphi:
+            temp |= 0xff00 & (byte << 8);
+            temperature = temp; // now assign temperature to this value
+            state = humlo;
+            break;
+        // Humidity low byte
+        case humlo:
+            temp = byte;
+            state = humhi;
+            break;
+        // Humidity high byte
+        case humhi:
+            temp |= 0xff00 & (byte << 8);
+            humidity = temp;
+            state = templo;
+            break;
+        // Shouldn't ever get here
+        default:
+            break;
+        }
+    }
+}
+
+// Report current positions and ask the pololus for updated positions
 void heartbeatEventHandler() {
+    //static int i = 0;
+    //i++;
+    //turretPos += i;
+    //shoulderPos += 2*i;
+    //elbowPos += 3*i;
+    //forearmPos += 4*i;
+    // Send positions to computer
+    
+    feedbackArray[0] = 0xE3; // start byte;
+    feedbackArray[1] =  (turretPos & 0xff);
+    feedbackArray[2] = ((turretPos >> 8) & 0xff);
+    feedbackArray[3] =  (shoulderPos & 0xff);
+    feedbackArray[4] = ((shoulderPos >> 8) & 0xff);
+    feedbackArray[5] =  (elbowPos & 0xff);
+    feedbackArray[6] = ((elbowPos  >> 8) & 0xff);
+    feedbackArray[7] =  (forearmPos & 0xff);
+    feedbackArray[8] = ((forearmPos >> 8) & 0xff);
+	feedbackArray[9] = ((temperature & 0xff));
+	feedbackArray[10] = ((temperature >> 8) & 0xff);
+	feedbackArray[11] =((humidity & 0xff));
+	feedbackArray[12] =((humidity >> 8) & 0xff);
+	UART_Computer_PutArray(feedbackArray, POSITION_PAYLOAD_SIZE);
+    
     // Turret
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_TURRET);
@@ -303,29 +389,111 @@ void heartbeatEventHandler() {
 		POLOLUCONTROL_FOREARM);
 }
 
+// Update turret position
+void updateTurretPos() {
+    static enum states_e {low, high} state = low;
+    
+    static uint16_t temp = 0;
+    while(UART_Turret_ReadRxStatus() & UART_Turret_RX_STS_FIFO_NOTEMPTY) {
+        switch(state) {
+            case low:
+                temp = UART_Turret_GetByte() & 0xff;
+                state = high;
+            break;
+            case high:
+                temp |= (UART_Turret_GetByte() << 8) & 0xff00;
+                turretPos = temp;
+                state = low;
+            break;
+            default:
+                state = low;
+            break;
+        }
+    }
+}
+
+// Update shoulder position
+void updateShoulderPos() {
+    static enum states_e {low, high} state = low;
+    
+    static uint16_t temp;
+    while(UART_Shoulder_ReadRxStatus() & UART_Shoulder_RX_STS_FIFO_NOTEMPTY) {
+        switch(state) {
+            case low:
+                temp = UART_Shoulder_GetByte() & 0xff;
+                state = high;
+            break;
+            case high:
+                temp |= (UART_Shoulder_GetByte() << 8) & 0xff00;
+                shoulderPos = temp;
+                state = low;
+            break;
+            default:
+                state = low;
+            break;
+        }
+    }
+}
+
+// Update elbow position
+void updateElbowPos() {
+	static enum states_e {low, high} state = low;
+    
+    static uint16_t temp;
+    while(UART_Elbow_ReadRxStatus() & UART_Elbow_RX_STS_FIFO_NOTEMPTY) {
+        switch(state) {
+            case low:
+                temp = UART_Elbow_GetByte() & 0xff;
+                state = high;
+            break;
+            case high:
+                temp |= (UART_Elbow_GetByte() << 8) & 0xff00;
+                elbowPos = temp;
+                state = low;
+            break;
+            default:
+                state = low;
+            break;
+        }
+    }
+}
+
+// Update forearm position
+void updateForearmPos() {
+	static enum states_e {low, high} state = low;
+    
+    static uint16_t temp;
+    while(UART_Forearm_ReadRxStatus() & UART_Forearm_RX_STS_FIFO_NOTEMPTY) {
+        switch(state) {
+            case low:
+                temp = UART_Forearm_GetByte() & 0xff;
+                state = high;
+            break;
+            case high:
+                temp |= (UART_Forearm_GetByte() << 8) & 0xff00;
+                forearmPos = temp;
+                state = low;
+            break;
+            default:
+                state = low;
+            break;
+        }
+    }
+}
+
 // Report received positional feedback to the computer.
-void reportPositionEvent() {
-    //static int i = 0;
-    //i++;
-    //turretPos += i;
-    //shoulderPos += 2*i;
-    //elbowPos += 3*i;
-    //forearmPos += 4*i;
-    // Send positions to computer
-    positionArray[0] = 0xE3; // start byte;
-    positionArray[1] =  (turretPos & 0xff);
-    positionArray[2] = ((turretPos >> 8) & 0xff);
-    positionArray[3] =  (shoulderPos & 0xff);
-    positionArray[4] = ((shoulderPos >> 8) & 0xff);
-    positionArray[5] =  (elbowPos & 0xff);
-    positionArray[6] = ((elbowPos  >> 8) & 0xff);
-    positionArray[7] =  (forearmPos & 0xff);
-    positionArray[8] = ((forearmPos >> 8) & 0xff);
-	positionArray[9] = ((temperature & 0xff));
-	positionArray[10] = ((temperature >> 8) & 0xff);
-	positionArray[11] =((humidity & 0xff));
-	positionArray[12] =((humidity >> 8) & 0xff);
-	UART_Computer_PutArray(positionArray, POSITION_PAYLOAD_SIZE);
+void reportPosition() {
+
+    char tem[5];
+    sprintf(tem, "%d", temperature);
+    tem[4] = 0;
+    char hum[5];
+    sprintf(hum, "%d", humidity);
+    hum[4] = 0;
+    UART_Computer_PutString("\n\r\n\rtemp:");
+    UART_Computer_PutString(tem);
+    UART_Computer_PutString("\n\rhumid:");
+    UART_Computer_PutString(hum);
 }
 
 /* [] END OF FILE */
