@@ -267,7 +267,7 @@ int compRxEventHandler() {
         case shovelhi:
             Payload.shovel |= (byte << 8);
             PWM_Hand_WriteCompare2(Payload.shovel);
-            compRxState = pre0; // change state
+            compRxState = pre0; // change state 
             break;
         default:
             // shouldn't get here!!!
