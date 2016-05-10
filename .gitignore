@@ -39,4 +39,4 @@ Generated_Source
 !*.docx
 
 # Ignore CortexM3 directory
-PSoC-Arm.cydsn
+*.cydsn/CortexM3
