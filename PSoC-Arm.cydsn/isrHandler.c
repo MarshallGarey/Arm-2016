@@ -17,6 +17,13 @@ static void feedbackToTerminal();
 // Generates fake science data and outputs to UART
 static void generateScienceTestData();
 
+// Send a command to the slave PSoC
+static void psocSlaveCmd();
+
+enum hand_e { open, close, halt };
+// Update hand position in payload
+static void handMsg(enum hand_e handPos);
+
 // Container for all events. See isrHandler.h for macros that define the events.
 volatile uint32_t events = 0;
 
@@ -38,6 +45,12 @@ static struct Payload {
     uint16_t handDest;
     uint16_t shovel;
 } Payload;
+
+static struct {
+    uint8_t hand;
+    uint8_t camSelect;
+    uint8_t chuteSelect;
+} PSoC_Slave_Payload;
 
 // Arm positions
 // These are the most recent positions received as feedback from the motors
@@ -62,7 +75,7 @@ static uint8_t feedbackArray[POSITION_PAYLOAD_SIZE];
 // The state machine is defined in the function compRxEventHandler
 #define PREAMBLE0 0xEA
 static enum compRxStates_e { pre0, leftlo, lefthi, rightlo, righthi, campanlo,
-    campanhi, camtiltlo, camtilthi, cam1, cam2, turretlo, turrethi, 
+    campanhi, camtiltlo, camtilthi, camSelect, turretlo, turrethi, 
     shoulderlo, shoulderhi, elbowlo, elbowhi, forearmlo, forearmhi,
     wristtiltlo, wristtilthi, wristspinlo, wristspinhi, 
     handlo, handhi, chutes, shovello, shovelhi } compRxState;
@@ -85,10 +98,8 @@ int compRxEventHandler() {
         data = UART_Computer_GetByte();
         
         // check status
-        // TODO: modify to actually return the status byte
-        // use this in the main function
+        // TODO: maybe make an error LED and use this in the main function
         if (data & 0xff00) {
-            //LED0_Write(!LED0_Read());
             return UART_READ_ERROR;
         }
         
@@ -137,47 +148,13 @@ int compRxEventHandler() {
         case camtilthi:
             Payload.cameraTilt |= byte << 8;
             PWM_Gimbal_WriteCompare2(Payload.cameraTilt);
-            compRxState = cam1; // change state
+            compRxState = camSelect; // change state
             break;
-        case cam1:
-            switch(byte) {
-            case 1:
-                PWM_VideoMux_WriteCompare(VIDEO1);
-                break;
-            case 2:
-                PWM_VideoMux_WriteCompare(VIDEO2);
-                break;
-            case 3:
-                PWM_VideoMux_WriteCompare(VIDEO3);
-                break;
-            default:
-                PWM_VideoMux_WriteCompare(VIDEO1);
-                break;
-            }
-            
+        case camSelect:
+            // update camera number in packet to send to slave PSoC
+            PSoC_Slave_Payload.camSelect = byte;
             compRxState = turretlo; // change state
             break;
-            /*
-            compRxState = cam2;
-            break;
-        case cam2:
-            switch(byte) {
-            case 1:
-                PWM_VideoMux2_WriteCompare(VIDEO1);
-                break;
-            case 2:
-                PWM_VideoMux2_WriteCompare(VIDEO2);
-                break;
-            case 3:
-                PWM_VideoMux2_WriteCompare(VIDEO3);
-                break;
-            default:
-                PWM_VideoMux2_WriteCompare(VIDEO1);
-                break;
-            }
-            compRxState = turretlo;
-            
-            break;*/
         case turretlo:
             Payload.turretDest = byte;
             compRxState = turrethi; // change state
@@ -245,13 +222,24 @@ int compRxEventHandler() {
         case handhi:
             Payload.handDest |= byte << 8;
             driveHand(Payload.handDest);
+            // send hand state to slave PSoC
+            uint16_t tmp_hand = Payload.handDest;
+            if (tmp_hand > SERVO_NEUTRAL) {
+                handMsg(close); // close hand
+            }
+            else if (tmp_hand < SERVO_NEUTRAL) {
+                handMsg(open); // open hand
+            }
+            else {
+                handMsg(halt); // don't move hand
+            }
             compRxState = chutes; // change state
             break;
         case chutes:
             // the chute values are packed into the first 6 bits of the byte
-            // chutes unused for science.
+            PSoC_Slave_Payload.chuteSelect = byte & 0x3f;
             
-            // box lid is 7th byte
+            // box lid open/close is 7th bit
             if ((byte >> 6) & 0x01) {
                 PWM_BoxLid_WriteCompare(SERVO_MIN); // open box
             }
@@ -266,7 +254,7 @@ int compRxEventHandler() {
             break;
         case shovelhi:
             Payload.shovel |= (byte << 8);
-            PWM_Hand_WriteCompare2(Payload.shovel);
+            PWM_Excavator_WriteCompare(Payload.shovel);
             compRxState = pre0; // change state 
             break;
         default:
@@ -293,7 +281,7 @@ void driveHand(uint16_t pos) {
     else if (pos > SERVO_MAX) {
         pos = SERVO_MAX;
     }
-    PWM_Hand_WriteCompare1(pos);
+    PWM_Hand_WriteCompare(pos);
 }
 
 void scienceEventHandler() {
@@ -371,7 +359,8 @@ void heartbeatEventHandler() {
     // Ask Arduino for science sensor data
     UART_ScienceMCU_PutChar(0xae);
     UART_ScienceMCU_PutChar(1);
-
+    
+    // Get Arm feedback:
     // Turret
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_TURRET);
@@ -387,7 +376,9 @@ void heartbeatEventHandler() {
     // Forearm
     pololuControl_readVariable(POLOLUCONTROL_READ_FEEDBACK_COMMAND,
 		POLOLUCONTROL_FOREARM);
-
+    
+    // Send command to PSoC slave
+    psocSlaveCmd();
 }
 
 // Update turret position
@@ -545,6 +536,40 @@ static void generateScienceTestData() {
     array[4] = (uint8_t)(hum & 0xff);
     array[5] = (uint8_t)(hum >> 8) & 0xff;
     UART_ScienceMCU_PutArray(array, 6);
+}
+
+static void psocSlaveCmd() {
+    static uint8_t cmd[5];
+    cmd[0] = 0xd8; // preamble first byte
+    cmd[1] = 0xc4; // preamble second byte
+    cmd[2] = PSoC_Slave_Payload.hand;
+    cmd[3] = PSoC_Slave_Payload.camSelect;
+    cmd[4] = PSoC_Slave_Payload.chuteSelect;
+    UART_PSoC_Slave_PutArray(cmd, 5);
+}
+
+// Update hand position in payload
+// enum hand_e { open, close, halt };
+// hand byte: xxxx x|en|a|b
+// x: unused
+// en: enable the h-bridge
+// a: close
+// b: open
+static void handMsg(enum hand_e handPos) {
+    switch(handPos) {
+    case open:
+        PSoC_Slave_Payload.hand = 0x05;
+        break;
+    case close:
+        PSoC_Slave_Payload.hand = 0x06;
+        break;
+    case halt:
+        PSoC_Slave_Payload.hand = 0x00;
+        break;
+    default:
+        PSoC_Slave_Payload.hand = 0x00;
+        break;
+    }
 }
 
 /* [] END OF FILE */

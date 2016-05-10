@@ -32,12 +32,11 @@
 codegentemp
 Generated_Source
 
-# Add back the bootloader files
-!*.hex
-!*.elf
-
 # Add back the documentation files.
 
 !*.md
 !*.txt
 !*.docx
+
+# Ignore CortexM3 directory
+PSoC-Arm.cydsn

@@ -98,86 +98,11 @@ void gimbalTest();
 // a function that resets everything
 void resetAll();
 
+void init();
+
 int main() {
-    // 5 second delay before we start everything up
-    CyDelay(5000);
-    
-    // Initialize variables
-    events = 0; // no pending events initially
-    LED0_Write(0); // LED off, turns on when we're done initializing
-    resetMode = FALSE;
-    
-    // Enable global interrupts
-    CyGlobalIntEnable;
-    
-    // Initialize and start hardware components:
-    
-    // computer uart
-    UART_Computer_Start();
-    Comp_RX_ISR_StartEx(CompRxISR);
-    
-    // drive
-    Clock_PWM_Start();
-    PWM_Drive_Start();
-    PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
-    PWM_Drive_WriteCompare2(SERVO_NEUTRAL);
-    
-    // gimbal (main camera pan/tilt)
-    PWM_Gimbal_Start();
-    PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
-    PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
-    
-    // clock for all other uart modules
-    UARTClk_Start();
-    
-    // turret
-    UART_Turret_Start();
-    TurretRxIsr_StartEx(TurretRxISR);
-    pololuControl_turnMotorOff(POLOLUCONTROL_TURRET);
-    
-    // shoulder uart
-    UART_Shoulder_Start();
-    ShoulderRxIsr_StartEx(ShoulderRxISR);
-    pololuControl_turnMotorOff(POLOLUCONTROL_SHOULDER);
-    
-    // elbow uart
-    UART_Elbow_Start();
-    ElbowRxIsr_StartEx(ElbowRxISR);
-    pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
-    
-    // forearm uart
-    UART_Forearm_Start();
-    ForearmRxIsr_StartEx(ForearmRxISR);
-    pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
-    
-    // science uart
-    UART_ScienceMCU_Start();
-    ScienceRxIsr_StartEx(ScienceRxISR);
-    
-    //Initialize the dynamixels
-//    wristSpeed(0xFE, 300); // also only do once
-//    setWristTorque(0xFE, 0x03FF); // maximum
-//    wristGoalPosition(WRIST_TILT_ID, 2048);
-//    wristGoalPosition(WRIST_ROTATE_ID, 2048);
-    
-    // hand pwm (also the heartbeat timer).
-    PWM_Hand_Start();
-    PWM_Hand_WriteCompare1(SERVO_NEUTRAL); // hand/temperature probe
-    PWM_Hand_WriteCompare2(SERVO_NEUTRAL); // excavator
-    heartbeatIsr_StartEx(HeartbeatISR);
-    
-    // sample box pwm
-    PWM_BoxLid_Start();
-    PWM_BoxLid_WriteCompare(SERVO_NEUTRAL);
-    
-    // video mux
-    PWM_VideoMux_Start();
-    PWM_VideoMux_WriteCompare(VIDEO1);
-    
-    PWM_VideoMux2_Start();
-    PWM_VideoMux2_WriteCompare(VIDEO2);
-    
-    LED0_Write(1); // done initializing
+
+    init();
     
     // loop - the while(1) here is just to make the compiler happy
     while(1) {
@@ -271,11 +196,8 @@ void resetAll() {
     pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
     pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
     
-    PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
-    PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
-    
-    PWM_VideoMux_WriteCompare(VIDEO1);
-    PWM_VideoMux2_WriteCompare(VIDEO1);
+    PWM_Hand_WriteCompare(SERVO_NEUTRAL);
+    PWM_Excavator_WriteCompare(SERVO_NEUTRAL);
     
     LED0_Write(1);
 }
@@ -341,18 +263,16 @@ void multiJointTest() {
 void handTest() {
     
     while(1) {
-        PWM_Hand_WriteCompare1(SERVO_MAX);
+        //PWM_Hand_WriteCompare1(SERVO_MAX);
+        PWM_Hand_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(4000);
-        PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
+        PWM_Hand_WriteCompare(SERVO_MIN);
         TOGGLE_LED0;
         CyDelay(4000);
-        PWM_Hand_WriteCompare1(SERVO_MIN);
+        PWM_Hand_WriteCompare(1950);
         TOGGLE_LED0;
-        CyDelay(4000);
-        PWM_Hand_WriteCompare1(SERVO_NEUTRAL);
-        TOGGLE_LED0;
-        CyDelay(4000);
+        CyDelay(30000);
     }
 }
 
@@ -360,16 +280,16 @@ void handTest() {
 void shovelTest() {
     
     while(1) {
-        PWM_Hand_WriteCompare2(SERVO_MAX);
+        PWM_Excavator_WriteCompare(SERVO_MAX);
         TOGGLE_LED0;         
         CyDelay(4000);       
-        PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
+        PWM_Excavator_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;         
         CyDelay(4000);       
-        PWM_Hand_WriteCompare2(SERVO_MIN);
+        PWM_Excavator_WriteCompare(SERVO_MIN);
         TOGGLE_LED0;         
         CyDelay(4000);       
-        PWM_Hand_WriteCompare2(SERVO_NEUTRAL);
+        PWM_Excavator_WriteCompare(SERVO_NEUTRAL);
         TOGGLE_LED0;
         CyDelay(4000);
     }
@@ -391,6 +311,81 @@ void gimbalTest() {
         TOGGLE_LED0;
         CyDelay(4000);
     }
+}
+
+void init() {
+        // 5 second delay before we start everything up
+    CyDelay(5000);
+    
+    // Initialize variables
+    events = 0; // no pending events initially
+    LED0_Write(0); // LED off, turns on when we're done initializing
+    resetMode = FALSE;
+    
+    // Enable global interrupts
+    CyGlobalIntEnable;
+    
+    // Initialize and start hardware components:
+    
+    // computer uart
+    UART_Computer_Start();
+    Comp_RX_ISR_StartEx(CompRxISR);
+    
+    // drive
+    Clock_PWM_Start();
+    PWM_Drive_Start();
+    PWM_Drive_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Drive_WriteCompare2(SERVO_NEUTRAL);
+    
+    // gimbal (main camera pan/tilt)
+    PWM_Gimbal_Start();
+    PWM_Gimbal_WriteCompare1(SERVO_NEUTRAL);
+    PWM_Gimbal_WriteCompare2(SERVO_NEUTRAL);
+    
+    // clock for all other uart modules
+    UARTClk_Start();
+    
+    // turret
+    UART_Turret_Start();
+    TurretRxIsr_StartEx(TurretRxISR);
+    pololuControl_turnMotorOff(POLOLUCONTROL_TURRET);
+    
+    // shoulder uart
+    UART_Shoulder_Start();
+    ShoulderRxIsr_StartEx(ShoulderRxISR);
+    pololuControl_turnMotorOff(POLOLUCONTROL_SHOULDER);
+    
+    // elbow uart
+    UART_Elbow_Start();
+    ElbowRxIsr_StartEx(ElbowRxISR);
+    pololuControl_turnMotorOff(POLOLUCONTROL_ELBOW);
+    
+    // forearm uart
+    UART_Forearm_Start();
+    ForearmRxIsr_StartEx(ForearmRxISR);
+    pololuControl_turnMotorOff(POLOLUCONTROL_FOREARM);
+    
+    // science uart
+    UART_ScienceMCU_Start();
+    ScienceRxIsr_StartEx(ScienceRxISR);
+    
+    //Initialize the dynamixels
+//    wristSpeed(0xFE, 300); // also only do once
+//    setWristTorque(0xFE, 0x03FF); // maximum
+//    wristGoalPosition(WRIST_TILT_ID, 2048);
+//    wristGoalPosition(WRIST_ROTATE_ID, 2048);
+    
+    // hand pwm (also the heartbeat timer).
+    PWM_Hand_Start();
+    PWM_Hand_WriteCompare(SERVO_NEUTRAL); // hand/temperature probe
+    PWM_Excavator_WriteCompare(SERVO_NEUTRAL); // excavator
+    heartbeatIsr_StartEx(HeartbeatISR);
+    
+    // sample box pwm
+    PWM_BoxLid_Start();
+    PWM_BoxLid_WriteCompare(SERVO_NEUTRAL);
+    
+    LED0_Write(1); // done initializing
 }
 
 /* [] END OF FILE */
