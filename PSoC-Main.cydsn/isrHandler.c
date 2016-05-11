@@ -85,6 +85,7 @@ int compRxEventHandler() {
     // get next element in uart rx buffer
     static uint16_t data;
     static uint8_t byte;
+    static uint16_t oldHandDest;
     
     // Keep reading the rx buffer until empty.
     // GetRxBufferSize gets the number of bytes in the software buffer,
@@ -216,18 +217,19 @@ int compRxEventHandler() {
             compRxState = handlo; // change state
             break;
         case handlo:
-            Payload.handDest = byte;
+            oldHandDest = Payload.handDest; // store old hand value
+            Payload.handDest = byte; // get new hand value
             compRxState = handhi; // change state
             break;
         case handhi:
-            Payload.handDest |= byte << 8;
+            Payload.handDest |= byte << 8; // finish getting new hand value
             driveHand(Payload.handDest);
             // send hand state to slave PSoC
-            uint16_t tmp_hand = Payload.handDest;
-            if (tmp_hand > SERVO_NEUTRAL) {
+            uint16_t tmpHand = Payload.handDest;
+            if (tmpHand > oldHandDest) {
                 handMsg(close); // close hand
             }
-            else if (tmp_hand < SERVO_NEUTRAL) {
+            else if (tmpHand < oldHandDest) {
                 handMsg(open); // open hand
             }
             else {
